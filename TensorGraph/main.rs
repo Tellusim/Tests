@@ -114,7 +114,7 @@ fn main() {
 		if size > 0 { tensor.width = source.readu16() as u32 }
 		tensor.offset = (source.readu32() * 4) as usize;
 		let name = source.read_string_with_term(0);
-		ts_logf!(Message, "{}: {}\n", tensors.len(), name);
+		ts_logf!(Message, "{}: {} [{}x{}x{}x{}]\n", tensors.len(), name, tensor.width, tensor.height, tensor.depth, tensor.layers);
 		tensors.push(tensor);
 	}
 	
@@ -168,39 +168,32 @@ fn main() {
 			tensor_graph.dispatch_with_destct(&mut compute, &texture_tensor, &mut texture);
 			
 			// first convolution
-			texture_tensor.stride = 3;
-			texture_tensor.padding = 2;
 			let mut tensor_0 = Tensor::new_with_buffer(&tensor_0_buffer);
-			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::Conv, &mut tensor_0, &texture_tensor, &tensors[0], TensorGraphFlags::SiLU);
+			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::Conv, &mut tensor_0, &texture_tensor.set_stride(3).set_padding(2), &tensors[0], TensorGraphFlags::SiLU);
 			
 			// first batch normalization
 			let mut tensor_1 = Tensor::new_with_buffer(&tensor_1_buffer);
 			tensor_graph.dispatch_with_op_dest_mut_src1_src2(&mut compute, TensorGraphOperation::BatchMad, &mut tensor_1, &tensor_0, &tensors[1], &tensors[2]);
 			
 			// second convolution
-			tensor_1.stride = 2;
-			tensor_1.padding = 2;
 			let mut tensor_2 = Tensor::new_with_buffer(&tensor_0_buffer);
-			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::Conv, &mut tensor_2, &tensor_1, &tensors[5], TensorGraphFlags::SiLU);
+			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::Conv, &mut tensor_2, &tensor_1.set_stride(2).set_padding(2), &tensors[5], TensorGraphFlags::SiLU);
 			
 			// second batch normalization
 			let mut tensor_3 = Tensor::new_with_buffer(&tensor_1_buffer);
 			tensor_graph.dispatch_with_op_dest_mut_src1_src2(&mut compute, TensorGraphOperation::BatchMad, &mut tensor_3, &tensor_2, &tensors[6], &tensors[7]);
 			
 			// third convolution
-			tensor_3.stride = 2;
-			tensor_3.padding = 1;
 			let mut tensor_4 = Tensor::new_with_buffer(&tensor_0_buffer);
-			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::Conv, &mut tensor_4, &tensor_3, &tensors[10], TensorGraphFlags::SiLU);
+			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::Conv, &mut tensor_4, &tensor_3.set_stride(2).set_padding(1), &tensors[10], TensorGraphFlags::SiLU);
 			
 			// third batch normalization
 			let mut tensor_5 = Tensor::new_with_buffer(&tensor_1_buffer);
 			tensor_graph.dispatch_with_op_dest_mut_src1_src2(&mut compute, TensorGraphOperation::BatchMad, &mut tensor_5, &tensor_4, &tensors[11], &tensors[12]);
 			
 			// fourth convolution
-			tensor_5.padding = 1;
 			let mut tensor_6 = Tensor::new_with_buffer(&tensor_0_buffer);
-			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::Conv, &mut tensor_6, &tensor_5, &tensors[15], TensorGraphFlags::SiLU);
+			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::Conv, &mut tensor_6, &tensor_5.set_padding(1), &tensors[15], TensorGraphFlags::SiLU);
 			
 			// quantize tensor
 			compute.set_kernel(&mut kernel);
@@ -209,27 +202,20 @@ fn main() {
 			compute.dispatch_with_width_height_depth(tensor_6.width, tensor_6.height, tensor_6.depth * layers);
 			
 			// first deconvolution
-			tensor_6.padding = 1;
 			let mut tensor_7 = Tensor::new_with_buffer(&tensor_1_buffer);
-			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::DeConv, &mut tensor_7, &tensor_6, &tensors[16], TensorGraphFlags::SiLU);
+			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::DeConv, &mut tensor_7, &tensor_6.set_padding(1), &tensors[16], TensorGraphFlags::SiLU);
 			
 			// second deconvolution
-			tensor_7.stride = 2;
-			tensor_7.padding = 1;
 			let mut tensor_8 = Tensor::new_with_buffer(&tensor_0_buffer);
-			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::DeConv, &mut tensor_8, &tensor_7, &tensors[17], TensorGraphFlags::SiLU);
+			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::DeConv, &mut tensor_8, &tensor_7.set_stride(2).set_padding(1), &tensors[17], TensorGraphFlags::SiLU);
 			
 			// third deconvolution
-			tensor_8.stride = 2;
-			tensor_8.padding = 1;
 			let mut tensor_9 = Tensor::new_with_buffer(&tensor_1_buffer);
-			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::DeConv, &mut tensor_9, &tensor_8, &tensors[18], TensorGraphFlags::SiLU);
+			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::DeConv, &mut tensor_9, &tensor_8.set_stride(2).set_padding(1), &tensors[18], TensorGraphFlags::SiLU);
 			
 			// fourth deconvolution
-			tensor_9.stride = 3;
-			tensor_9.padding = 1;
 			texture_tensor.padding = 1;
-			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::DeConv, &mut texture_tensor, &tensor_9, &tensors[19], TensorGraphFlags::Sigm);
+			tensor_graph.dispatch_with_op_dest_mut_src1_flags(&mut compute, TensorGraphOperation::DeConv, &mut texture_tensor, &tensor_9.set_stride(3).set_padding(1), &tensors[19], TensorGraphFlags::Sigm);
 			
 			// copy tensor to texture
 			tensor_graph.dispatch_with_destt(&mut compute, &mut surface, &texture_tensor);
