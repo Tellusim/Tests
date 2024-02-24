@@ -34,6 +34,7 @@ fn main() {
 	let mut app = App::new();
 	if !app.create() { exit(1) }
 	
+	// create window
 	let mut window = Window::new_with_platform_index(app.platform(), app.device());
 	if !window.is_valid_ptr() { exit(1) }
 	
@@ -200,6 +201,7 @@ fn main() {
 			compute.set_uniform(0, &Vector4u::new(tensor_6.width, tensor_6.height, tensor_6.depth, tensor_6.layers));
 			compute.set_storage_buffer(0, &mut tensor_0_buffer);
 			compute.dispatch_with_width_height_depth(tensor_6.width, tensor_6.height, tensor_6.depth * layers);
+			compute.barrier_with_buffer(&mut tensor_0_buffer);
 			
 			// first deconvolution
 			let mut tensor_7 = Tensor::new_with_buffer(&tensor_1_buffer);

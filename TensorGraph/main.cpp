@@ -187,6 +187,7 @@ int32_t main(int32_t argc, char **argv) {
 			compute.setUniform(0, tensor_6.size);
 			compute.setStorageBuffer(0, *tensor_6.buffer);
 			compute.dispatch(tensor_6.width, tensor_6.height, tensor_6.depth * layers);
+			compute.barrier(tensor_0_buffer);
 			
 			// first deconvolution
 			Tensor tensor_7(&tensor_1_buffer);
