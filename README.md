@@ -1,4 +1,4 @@
-# Tellusim Core SDK tests
+# Tellusim Core SDK Tests
 
 C++, C#, Rust, Python, Swift
 
