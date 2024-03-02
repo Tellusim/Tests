@@ -5,6 +5,8 @@ import torch
 import torchvision
 import torchsummary
 
+from tellusimd import *
+
 device = torch.device('cpu')
 if torch.cuda.is_available():
 	device = torch.device('cuda')
@@ -96,6 +98,7 @@ file = open('model.bin', 'wb')
 
 # write header
 offset = 0
+alignment = 64
 for name in model_state:
 	tensor = model_state[name]
 	if not tensor.shape: continue
@@ -104,7 +107,7 @@ for name in model_state:
 	file.write(struct.pack('I', offset))
 	file.write(struct.pack('{}s'.format(len(name) + 1), name.encode('utf-8')))
 	print(name, list(tensor.shape), tensor.numel())
-	offset += tensor.numel()
+	offset += align(tensor.numel(), alignment)
 
 # end of header
 file.write(struct.pack('B', 0xff))
@@ -116,3 +119,5 @@ for name in model_state:
 	if not tensor.shape: continue
 	tensor = tensor.detach().cpu().view(-1).numpy()
 	file.write(struct.pack('f' * len(tensor), *tensor))
+	for i in range(len(tensor), align(len(tensor), alignment)):
+		file.write(struct.pack('f', 0.0))

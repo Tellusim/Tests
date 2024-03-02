@@ -44,7 +44,7 @@ def main(argv):
 	window.setCloseClickedCallback(lambda: window.stop())
 	window.setKeyboardPressedCallback(lambda key, code: window.stop() if key == Window.KeyEsc else None)
 	
-	title = window.platform_name + ' Tellusim::TensorTorch Python'
+	title = window.platform_name + ' Tellusim::TensorMnist Python'
 	if not window.create(title) or not window.setHidden(False): return 1
 	
 	# create device
@@ -59,29 +59,22 @@ def main(argv):
 	# create pipeline
 	pipeline = device.createPipeline()
 	pipeline.setSamplerMask(0, Shader.MaskFragment)
-	pipeline.setTextureMask(0, Shader.MaskFragment)
+	pipeline.setTextureMasks(0, 2, Shader.MaskFragment)
+	pipeline.setStorageMask(0, Shader.MaskFragment)
 	pipeline.setColorFormat(window.color_format)
 	pipeline.setDepthFormat(window.depth_format)
 	if not pipeline.loadShaderGLSL(Shader.TypeVertex, 'main.shader', 'VERTEX_SHADER=1'): return 1
 	if not pipeline.loadShaderGLSL(Shader.TypeFragment, 'main.shader', 'FRAGMENT_SHADER=1'): return 1
 	if not pipeline.create(): return 1
 	
-	# create kernel
-	kernel = device.createKernel().setUniforms(1).setStorages(1)
-	if not kernel.loadShaderGLSL('main.shader', 'COMPUTE_SHADER=1'): return 1
-	if not kernel.create(): return 1
-	
 	# create sampler
 	sampler = device.createSampler(Sampler.FilterLinear, Sampler.WrapModeClamp)
 	if not sampler: return 1
 	
-	# create texture
-	texture = device.loadTexture('texture.jpg')
-	if not texture: return 1
-	
-	# create surface
-	surface = device.createTexture2D(FormatRGBAu8n, texture.width, texture.height, flags = Texture.FlagSurface)
-	if not surface: return 1
+	# create textures
+	texture = device.loadTexture('texture.png')
+	numbers = device.loadTexture('numbers.png')
+	if not texture or not numbers: return 1
 	
 	# create tensor graph
 	tensor_graph = TensorGraph()
@@ -118,17 +111,17 @@ def main(argv):
 		tensor.format = FormatRf32
 	
 	# create texture tensor
-	size = 64
+	size = 28
 	width = udiv(texture.width, size)
 	height = udiv(texture.height, size)
 	layers = width * height
-	texture_buffer = device.createBuffer(Buffer.FlagStorage, size * size * 3 * layers * 4)
-	texture_tensor = Tensor(texture_buffer, FormatRf32, size, size, 3, layers)
+	texture_buffer = device.createBuffer(Buffer.FlagStorage, size * size * layers * 4)
+	texture_tensor = Tensor(texture_buffer, FormatRf32, size, size, 1, layers)
 	if not texture_buffer: return 1
 	
 	# create temporal tensors
-	tensor_0_buffer = device.createBuffer(Buffer.FlagStorage, texture_buffer.size)
-	tensor_1_buffer = device.createBuffer(Buffer.FlagStorage, texture_buffer.size)
+	tensor_0_buffer = device.createBuffer(Buffer.FlagStorage, 1024 * 1024 * 16)
+	tensor_1_buffer = device.createBuffer(Buffer.FlagStorage, 1024 * 1024 * 16)
 	if not tensor_0_buffer or not tensor_1_buffer: return 1
 	
 	# create target
@@ -151,62 +144,43 @@ def main(argv):
 			
 			# first convolution
 			tensor_0 = Tensor(tensor_0_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Conv, tensor_0, texture_tensor.set(stride = 3, padding = 2), tensors[0], TensorGraph.FlagSiLU)
+			tensor_graph.dispatch(compute, TensorGraph.Conv, tensor_0, texture_tensor.set(stride = 2, padding = 1), tensors[0], TensorGraph.FlagReLU)
+			
+			# first max pool
+			tensor_1 = Tensor(tensor_1_buffer)
+			tensor_graph.dispatch(compute, TensorGraph.MaxPool, tensor_1, tensor_0.set(stride = 2))
 			
 			# first batch normalization
-			tensor_1 = Tensor(tensor_1_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.BatchMad, tensor_1, tensor_0, tensors[1], tensors[2])
+			tensor_2 = Tensor(tensor_0_buffer)
+			tensor_graph.dispatch(compute, TensorGraph.BatchNorm, tensor_2, tensor_1, tensors[3], tensors[4])
+			
+			tensor_3 = Tensor(tensor_1_buffer)
+			tensor_graph.dispatch(compute, TensorGraph.BatchMad, tensor_3, tensor_2, tensors[1], tensors[2])
 			
 			# second convolution
-			tensor_2 = Tensor(tensor_0_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Conv, tensor_2, tensor_1.set(stride = 2, padding = 2), tensors[5], TensorGraph.FlagSiLU)
+			tensor_4 = Tensor(tensor_0_buffer)
+			tensor_graph.dispatch(compute, TensorGraph.Conv, tensor_4, tensor_3.set(stride = 2, padding = 1), tensors[5], TensorGraph.FlagReLU)
+			
+			# second max pool
+			tensor_5 = Tensor(tensor_1_buffer)
+			tensor_graph.dispatch(compute, TensorGraph.MaxPool, tensor_5, tensor_4.set(stride = 2))
 			
 			# second batch normalization
-			tensor_3 = Tensor(tensor_1_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.BatchMad, tensor_3, tensor_2, tensors[6], tensors[7])
-			
-			# third convolution
-			tensor_4 = Tensor(tensor_0_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Conv, tensor_4, tensor_3.set(stride = 2, padding = 1), tensors[10], TensorGraph.FlagSiLU)
-			
-			# third batch normalization
-			tensor_5 = Tensor(tensor_1_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.BatchMad, tensor_5, tensor_4, tensors[11], tensors[12])
-			
-			# fourth convolution
 			tensor_6 = Tensor(tensor_0_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Conv, tensor_6, tensor_5.set(stride = 1, padding = 1), tensors[15], TensorGraph.FlagSiLU)
+			tensor_graph.dispatch(compute, TensorGraph.BatchNorm, tensor_6, tensor_5, tensors[8], tensors[9])
 			
-			# quantize tensor
-			compute.setKernel(kernel)
-			compute.setUniform(0, tensor_6.size)
-			compute.setStorageBuffer(0, tensor_6.buffer)
-			compute.dispatch(tensor_6.width, tensor_6.height, tensor_6.depth * layers)
-			compute.barrier(tensor_0_buffer)
-			
-			# first deconvolution
 			tensor_7 = Tensor(tensor_1_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.DeConv, tensor_7, tensor_6.set(stride = 1, padding = 1), tensors[16], TensorGraph.FlagSiLU)
+			tensor_graph.dispatch(compute, TensorGraph.BatchMad, tensor_7, tensor_6, tensors[6], tensors[7])
 			
-			# second deconvolution
-			tensor_8 = Tensor(tensor_0_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.DeConv, tensor_8, tensor_7.set(stride = 2, padding = 1), tensors[17], TensorGraph.FlagSiLU)
-			
-			# third deconvolution
-			tensor_9 = Tensor(tensor_1_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.DeConv, tensor_9, tensor_8.set(stride = 2, padding = 1), tensors[18], TensorGraph.FlagSiLU)
-			
-			# fourth deconvolution
-			texture_tensor.padding = 1
-			tensor_graph.dispatch(compute, TensorGraph.DeConv, texture_tensor, tensor_9.set(stride = 3, padding = 1), tensors[19], TensorGraph.FlagSigm)
-			
-			# copy tensor to texture
-			tensor_graph.dispatch(compute, surface, texture_tensor)
+			# matrix multiplication and addition
+			tensor_8 = Tensor(tensor_0_buffer);
+			tensor_7 = Tensor(tensor_7, 1, tensor_7.width * tensor_7.height * tensor_7.depth, tensor_7.layers)
+			tensor_graph.dispatch(compute, TensorGraph.MatMad, tensor_8, tensors[10], tensor_7, tensors[11])
 			
 			compute = None
 		
-		# flush surface
-		device.flushTexture(surface)
+		# flush buffer
+		device.flushBuffer(tensor_0_buffer)
 		
 		# window target
 		if target.begin():
@@ -217,7 +191,9 @@ def main(argv):
 			# draw surface
 			command.setPipeline(pipeline)
 			command.setSampler(0, sampler)
-			command.setTexture(0, surface)
+			command.setTexture(0, texture)
+			command.setTexture(1, numbers)
+			command.setStorageBuffer(0, tensor_0_buffer)
 			command.drawArrays(3)
 			
 			command = None

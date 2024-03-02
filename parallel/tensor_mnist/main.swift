@@ -44,7 +44,7 @@ func main() -> Int32 {
 		if key == Window.Key.Esc.rawValue { window.stop() }
 	}))
 	
-	let title = window.getPlatformName() + " Tellusim::TensorTorch Swift"
+	let title = window.getPlatformName() + " Tellusim::TensorMnist Swift"
 	if !window.create(title) || !window.setHidden(false) { return 1 }
 	
 	// create device
@@ -63,29 +63,22 @@ func main() -> Int32 {
 	// create pipeline
 	let pipeline = device.createPipeline()
 	pipeline.setSamplerMask(0, Shader.Mask.Fragment)
-	pipeline.setTextureMask(0, Shader.Mask.Fragment)
+	pipeline.setTextureMasks(0, 2, Shader.Mask.Fragment)
+	pipeline.setStorageMask(0, Shader.Mask.Fragment)
 	pipeline.setColorFormat(window.getColorFormat())
 	pipeline.setDepthFormat(window.getDepthFormat())
 	if !pipeline.loadShaderGLSL(Shader.Kind.Vertex, "main.shader", "VERTEX_SHADER=1") { return 1 }
 	if !pipeline.loadShaderGLSL(Shader.Kind.Fragment, "main.shader", "FRAGMENT_SHADER=1") { return 1 }
 	if !pipeline.create() { return 1 }
 	
-	// create kernel
-	let kernel = device.createKernel().setUniforms(1).setStorages(1)
-	if !kernel.loadShaderGLSL("main.shader", "COMPUTE_SHADER=1") { return 1 }
-	if !kernel.create() { return 1 }
-	
 	// create sampler
 	let sampler = device.createSampler(Sampler.Filter.Linear, Sampler.WrapMode.Clamp)
 	if !sampler { return 1 }
 	
-	// create texture
-	let texture = device.loadTexture("texture.jpg")
-	if !texture { return 1 }
-	
-	// create surface
-	let surface = device.createTexture2D(Format.RGBAu8n, texture.getWidth(), texture.getHeight(), Texture.Flags.Surface)
-	if !surface { return 1 }
+	// create textures
+	let texture = device.loadTexture("texture.png")
+	let numbers = device.loadTexture("numbers.png")
+	if !texture || !numbers { return 1 }
 	
 	// create tensor graph
 	let tensor_graph = TensorGraph()
@@ -124,17 +117,17 @@ func main() -> Int32 {
 	}
 	
 	// create texture tensor
-	let size = UInt32(64)
+	let size = UInt32(28)
 	let width = udiv(texture.getWidth(), size)
 	let height = udiv(texture.getHeight(), size)
 	let layers = width * height
-	let texture_buffer = device.createBuffer(Buffer.Flags.Storage, Int(size * size * 3 * layers * 4))
-	var texture_tensor = Tensor(texture_buffer, Format.Rf32, size, size, 3, layers)
+	let texture_buffer = device.createBuffer(Buffer.Flags.Storage, Int(size * size * layers * 4))
+	let texture_tensor = Tensor(texture_buffer, Format.Rf32, size, size, 1, layers)
 	if !texture_buffer { return 1 }
 	
 	// create temporal tensors
-	let tensor_0_buffer = device.createBuffer(Buffer.Flags.Storage, texture_buffer.getSize())
-	let tensor_1_buffer = device.createBuffer(Buffer.Flags.Storage, texture_buffer.getSize())
+	let tensor_0_buffer = device.createBuffer(Buffer.Flags.Storage, 1024 * 1024 * 16)
+	let tensor_1_buffer = device.createBuffer(Buffer.Flags.Storage, 1024 * 1024 * 16)
 	if !tensor_0_buffer || !tensor_1_buffer { return 1 }
 	
 	// create target
@@ -159,60 +152,42 @@ func main() -> Int32 {
 			
 			// first convolution
 			var tensor_0 = Tensor(tensor_0_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Operation.Conv, &tensor_0, texture_tensor.setStride(3).setPadding(2), tensors[0], TensorGraph.Flags.SiLU)
+			tensor_graph.dispatch(compute, TensorGraph.Operation.Conv, &tensor_0, texture_tensor.setStride(2).setPadding(1), tensors[0], TensorGraph.Flags.ReLU)
+			
+			// first max pool
+			var tensor_1 = Tensor(tensor_1_buffer)
+			tensor_graph.dispatch(compute, TensorGraph.Operation.MaxPool, &tensor_1, tensor_0.setStride(2))
 			
 			// first batch normalization
-			var tensor_1 = Tensor(tensor_1_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Operation.BatchMad, &tensor_1, tensor_0, tensors[1], tensors[2])
+			var tensor_2 = Tensor(tensor_0_buffer)
+			tensor_graph.dispatch(compute, TensorGraph.Operation.BatchNorm, &tensor_2, tensor_1, tensors[3], tensors[4])
+			
+			var tensor_3 = Tensor(tensor_1_buffer)
+			tensor_graph.dispatch(compute, TensorGraph.Operation.BatchMad, &tensor_3, tensor_2, tensors[1], tensors[2])
 			
 			// second convolution
-			var tensor_2 = Tensor(tensor_0_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Operation.Conv, &tensor_2, tensor_1.setStride(2).setPadding(2), tensors[5], TensorGraph.Flags.SiLU)
+			var tensor_4 = Tensor(tensor_0_buffer)
+			tensor_graph.dispatch(compute, TensorGraph.Operation.Conv, &tensor_4, tensor_3.setStride(2).setPadding(1), tensors[5], TensorGraph.Flags.ReLU)
+			
+			// second max pool
+			var tensor_5 = Tensor(tensor_1_buffer)
+			tensor_graph.dispatch(compute, TensorGraph.Operation.MaxPool, &tensor_5, tensor_4.setStride(2))
 			
 			// second batch normalization
-			var tensor_3 = Tensor(tensor_1_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Operation.BatchMad, &tensor_3, tensor_2, tensors[6], tensors[7])
-			
-			// third convolution
-			var tensor_4 = Tensor(tensor_0_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Operation.Conv, &tensor_4, tensor_3.setStride(2).setPadding(1), tensors[10], TensorGraph.Flags.SiLU)
-			
-			// third batch normalization
-			var tensor_5 = Tensor(tensor_1_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Operation.BatchMad, &tensor_5, tensor_4, tensors[11], tensors[12])
-			
-			// fourth convolution
 			var tensor_6 = Tensor(tensor_0_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Operation.Conv, &tensor_6, tensor_5.setStride(1).setPadding(1), tensors[15], TensorGraph.Flags.SiLU)
+			tensor_graph.dispatch(compute, TensorGraph.Operation.BatchNorm, &tensor_6, tensor_5, tensors[8], tensors[9])
 			
-			// quantize tensor
-			compute.setKernel(kernel)
-			compute.setUniform(0, &tensor_6.size)
-			compute.setStorageBuffer(0, tensor_0_buffer)
-			compute.dispatch(tensor_6.width, tensor_6.height, tensor_6.depth * layers)
-			
-			// first deconvolution
 			var tensor_7 = Tensor(tensor_1_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Operation.DeConv, &tensor_7, tensor_6.setStride(1).setPadding(1), tensors[16], TensorGraph.Flags.SiLU)
+			tensor_graph.dispatch(compute, TensorGraph.Operation.BatchMad, &tensor_7, tensor_6, tensors[6], tensors[7])
 			
-			// second deconvolution
+			// matrix multiplication and addition
 			var tensor_8 = Tensor(tensor_0_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Operation.DeConv, &tensor_8, tensor_7.setStride(2).setPadding(1), tensors[17], TensorGraph.Flags.SiLU)
-			
-			// third deconvolution
-			var tensor_9 = Tensor(tensor_1_buffer)
-			tensor_graph.dispatch(compute, TensorGraph.Operation.DeConv, &tensor_9, tensor_8.setStride(2).setPadding(1), tensors[18], TensorGraph.Flags.SiLU)
-			
-			// fourth deconvolution
-			texture_tensor.padding = 1
-			tensor_graph.dispatch(compute, TensorGraph.Operation.DeConv, &texture_tensor, tensor_9.setStride(3).setPadding(1), tensors[19], TensorGraph.Flags.Sigm)
-			
-			// copy tensor to texture
-			tensor_graph.dispatch(compute, surface, texture_tensor)
+			tensor_7 = Tensor(tensor_7, 1, tensor_7.width * tensor_7.height * tensor_7.depth, tensor_7.layers)
+			tensor_graph.dispatch(compute, TensorGraph.Operation.MatMad, &tensor_8, tensors[10], tensor_7, tensors[11])
 		}
 		
-		// flush texture
-		device.flushTexture(surface)
+		// flush buffer
+		device.flushBuffer(tensor_0_buffer)
 		
 		// window target
 		if target.begin() {
@@ -223,7 +198,9 @@ func main() -> Int32 {
 			// draw surface
 			command.setPipeline(pipeline)
 			command.setSampler(0, sampler)
-			command.setTexture(0, surface)
+			command.setTexture(0, texture)
+			command.setTexture(1, numbers)
+			command.setStorageBuffer(0, tensor_0_buffer)
 			command.drawArrays(3)
 		}
 		target.end()
