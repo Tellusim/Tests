@@ -126,7 +126,7 @@ class TensorTorch {
 		Tensor texture_tensor = new Tensor(texture_buffer, Format.Rf32, tile, tile, 1, layers);
 		if(!texture_buffer) return;
 		
-		// create temporal tensors
+		// create temporary buffer
 		Buffer tensor_0_buffer = device.createBuffer(Buffer.Flags.Storage, 1024 * 1024 * 16);
 		Buffer tensor_1_buffer = device.createBuffer(Buffer.Flags.Storage, 1024 * 1024 * 16);
 		if(!tensor_0_buffer || !tensor_1_buffer) return;
@@ -183,8 +183,8 @@ class TensorTorch {
 				
 				// matrix multiplication and addition
 				Tensor tensor_8 = new Tensor(tensor_0_buffer);
-				tensor_7 = new Tensor(tensor_7, 1, tensor_7.width * tensor_7.height * tensor_7.depth, tensor_7.layers);
-				tensor_graph.dispatch(compute, TensorGraph.Operation.MatMad, ref tensor_8, tensors[10], tensor_7, tensors[11]);
+				tensor_7 = new Tensor(tensor_7, tensor_7.width * tensor_7.height * tensor_7.depth, tensor_7.layers);
+				tensor_graph.dispatch(compute, TensorGraph.Operation.MatMad, ref tensor_8, tensor_7, tensors[10], tensors[11], TensorGraph.Flags.Transpose);
 				
 				compute.destroyPtr();
 			}

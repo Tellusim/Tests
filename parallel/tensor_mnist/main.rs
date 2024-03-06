@@ -134,7 +134,7 @@ fn main() {
 	let texture_tensor = Tensor::new_with_size(&texture_buffer, Format::Rf32, size, size, 1, layers);
 	if !texture_buffer.is_valid_ptr() { exit(1) }
 	
-	// create temporal tensors
+	// create tempoary buffers
 	let mut tensor_0_buffer = device.create_buffer_with_flags(BufferFlags::Storage, 1024 * 1024 * 16);
 	let tensor_1_buffer = device.create_buffer_with_flags(BufferFlags::Storage, 1024 * 1024 * 16);
 	if !tensor_0_buffer.is_valid_ptr() || !tensor_1_buffer.is_valid_ptr() { exit(1) }
@@ -193,8 +193,8 @@ fn main() {
 			
 			// matrix multiplication and addition
 			let mut tensor_8 = Tensor::new_with_buffer(&tensor_0_buffer);
-			tensor_7 = Tensor::new_with_tensor_size(&tensor_7, 1, tensor_7.width * tensor_7.height * tensor_7.depth, tensor_7.layers, 1);
-			tensor_graph.dispatch_with_op_dest_mut_src1_src2(&mut compute, TensorGraphOperation::MatMad, &mut tensor_8, &tensors[10], &tensor_7, &tensors[11]);
+			tensor_7 = Tensor::new_with_tensor_width_height(&tensor_7, tensor_7.width * tensor_7.height * tensor_7.depth, tensor_7.layers);
+			tensor_graph.dispatch_with_op_dest_mut_src1_src2_flags(&mut compute, TensorGraphOperation::MatMad, &mut tensor_8, &tensor_7, &tensors[10], &tensors[11], TensorGraphFlags::Transpose);
 		}
 		
 		// flush buffer

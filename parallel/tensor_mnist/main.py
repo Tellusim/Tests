@@ -119,7 +119,7 @@ def main(argv):
 	texture_tensor = Tensor(texture_buffer, FormatRf32, size, size, 1, layers)
 	if not texture_buffer: return 1
 	
-	# create temporal tensors
+	# create temporary buffers
 	tensor_0_buffer = device.createBuffer(Buffer.FlagStorage, 1024 * 1024 * 16)
 	tensor_1_buffer = device.createBuffer(Buffer.FlagStorage, 1024 * 1024 * 16)
 	if not tensor_0_buffer or not tensor_1_buffer: return 1
@@ -174,8 +174,8 @@ def main(argv):
 			
 			# matrix multiplication and addition
 			tensor_8 = Tensor(tensor_0_buffer);
-			tensor_7 = Tensor(tensor_7, 1, tensor_7.width * tensor_7.height * tensor_7.depth, tensor_7.layers)
-			tensor_graph.dispatch(compute, TensorGraph.MatMad, tensor_8, tensors[10], tensor_7, tensors[11])
+			tensor_7 = Tensor(tensor_7, tensor_7.width * tensor_7.height * tensor_7.depth, tensor_7.layers)
+			tensor_graph.dispatch(compute, TensorGraph.MatMad, tensor_8, tensor_7, tensors[10], tensors[11], TensorGraph.FlagTranspose)
 			
 			compute = None
 		

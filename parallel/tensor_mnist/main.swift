@@ -125,7 +125,7 @@ func main() -> Int32 {
 	let texture_tensor = Tensor(texture_buffer, Format.Rf32, size, size, 1, layers)
 	if !texture_buffer { return 1 }
 	
-	// create temporal tensors
+	// create temporary buffers
 	let tensor_0_buffer = device.createBuffer(Buffer.Flags.Storage, 1024 * 1024 * 16)
 	let tensor_1_buffer = device.createBuffer(Buffer.Flags.Storage, 1024 * 1024 * 16)
 	if !tensor_0_buffer || !tensor_1_buffer { return 1 }
@@ -182,8 +182,8 @@ func main() -> Int32 {
 			
 			// matrix multiplication and addition
 			var tensor_8 = Tensor(tensor_0_buffer)
-			tensor_7 = Tensor(tensor_7, 1, tensor_7.width * tensor_7.height * tensor_7.depth, tensor_7.layers)
-			tensor_graph.dispatch(compute, TensorGraph.Operation.MatMad, &tensor_8, tensors[10], tensor_7, tensors[11])
+			tensor_7 = Tensor(tensor_7, tensor_7.width * tensor_7.height * tensor_7.depth, tensor_7.layers)
+			tensor_graph.dispatch(compute, TensorGraph.Operation.MatMad, &tensor_8, tensor_7, tensors[10], tensors[11], TensorGraph.Flags.Transpose)
 		}
 		
 		// flush buffer
