@@ -68,7 +68,7 @@ int32_t main(int32_t argc, char **argv) {
 	Image dest_image = Image(Image::Type2D, FormatRGBAu32, Size(udiv(width, block_size), udiv(height, block_size)));
 	
 	// create intermediate texture
-	Texture dest_texture = device.createTexture(dest_image, Texture::FlagSurface);
+	Texture dest_texture = device.createTexture(dest_image, Texture::FlagSurface | Texture::FlagSource);
 	if(!dest_texture) return 1;
 	
 	// dispatch encoder
@@ -85,7 +85,7 @@ int32_t main(int32_t argc, char **argv) {
 	
 	// copy image data
 	Image image = Image(Image::Type2D, encoder_format, Size(width, height));
-	image.setData(dest_image.getData());
+	memcpy(image.getData(), dest_image.getData(), min(image.getDataSize(), dest_image.getDataSize()));
 	
 	// save encoded image
 	image.save("texture.dds");
