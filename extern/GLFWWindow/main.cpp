@@ -20,17 +20,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "QGLWidget.h"
-#include <QtGui/QOpenGLContext>
-#if _WIN32
-	#include <QtPlatformHeaders/QWGLNativeContext>
-#else
-	#include <QtPlatformHeaders/QGLXNativeContext>
-#endif
+#include <GLFW/glfw3.h>
 
+#include <core/TellusimLog.h>
 #include <core/TellusimTime.h>
 #include <math/TellusimMath.h>
+#include <platform/TellusimContext.h>
+#include <platform/TellusimSurface.h>
+#include <platform/TellusimPipeline.h>
 #include <platform/TellusimCommand.h>
+#include <platform/TellusimDevice.h>
 
 /*
  */
@@ -38,41 +37,117 @@ namespace Tellusim {
 	
 	/*
 	 */
-	QGLWidget::QGLWidget(QWidget *parent) : QOpenGLWidget(parent) {
+	class GLFWWindow {
+			
+		public:
+			
+			GLFWWindow();
+			~GLFWWindow();
+			
+			// create window
+			bool create();
+			
+			// main loop
+			bool run();
+			
+		private:
+			
+			/// error callback
+			static void error_callback(int error, const char *str);
+			
+			/// rendering loop
+			bool init_gl();
+			bool render_gl();
+			
+			bool done = false;
+			
+			GLFWwindow *window = nullptr;
+			
+			GLContext context;
+			GLSurface surface;
+			
+			Device device;
+			
+			Pipeline pipeline;
+			Buffer vertex_buffer;
+			Buffer index_buffer;
+	};
+	
+	/*
+	 */
+	GLFWWindow::GLFWWindow() {
 		
 	}
 	
-	QGLWidget::~QGLWidget() {
+	GLFWWindow::~GLFWWindow() {
 		
+		// terminate glfw
+		glfwDestroyWindow(window);
+		glfwTerminate();
 	}
 	
 	/*
 	 */
-	QSize QGLWidget::sizeHint() const {
-		return QSize(1280, 720);
-	}
-	
-	/*
-	 */
-	void QGLWidget::initializeGL() {
+	bool GLFWWindow::create() {
 		
-		// context handle
-		#if _WIN32
-			QWGLNativeContext handle = qvariant_cast<QWGLNativeContext>(context()->nativeHandle());
-		#else
-			QGLXNativeContext handle = qvariant_cast<QGLXNativeContext>(context()->nativeHandle());
-		#endif
+		TS_ASSERT(window == nullptr);
 		
-		// create context
-		if(!gl_context.create(handle.context())) return;
+		// initialize glfw
+		if(!glfwInit()) {
+			TS_LOG(Error, "GLFWWindow::create(): can't init glfw\n");
+			return false;
+		}
 		
-		// create surface
-		surface = GLSurface(gl_context);
-		if(!surface) return;
+		// create window
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+		glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+		window = glfwCreateWindow(1600, 900, "Tellusim::GLFWWindow", nullptr, nullptr);
+		if(!window) {
+			TS_LOG(Error, "GLFWWindow::create(): can't create window\n");
+			return false;
+		}
+		
+		// set current context
+		glfwMakeContextCurrent(window);
+		
+		// create external context
+		if(!context.create(nullptr)) {
+			TS_LOG(Error, "GLFWWindow::create(): can't create context\n");
+			return false;
+		}
+		
+		// create external surface
+		surface = GLSurface(context);
+		if(!surface) {
+			TS_LOG(Error, "GLFWWindow::create(): can't create context\n");
+			return false;
+		}
 		
 		// create device
 		device = Device(surface);
-		if(!device) return;
+		if(!device) {
+			TS_LOG(Error, "GLFWWindow::create(): can't create device\n");
+			return false;
+		}
+		
+		// initialize gl
+		if(!init_gl()) {
+			TS_LOGE(Error, "GLFWWindow::create(): can't initialize GL\n");
+			return false;
+		}
+		
+		return true;
+	}
+	
+	/*
+	 */
+	bool GLFWWindow::init_gl() {
+		
+		// create surface
+		surface.setColorFormat(FormatRGBAu8n);
+		surface.setDepthFormat(FormatDu24Su8);
 		
 		// create pipeline
 		pipeline = device.createPipeline();
@@ -83,42 +158,29 @@ namespace Tellusim {
 		pipeline.setColorFormat(surface.getColorFormat());
 		pipeline.setDepthFormat(surface.getDepthFormat());
 		pipeline.setMultisample(surface.getMultisample());
-		if(!pipeline.loadShaderGLSL(Shader::TypeVertex, "main.shader", "VERTEX_SHADER=1")) return;
-		if(!pipeline.loadShaderGLSL(Shader::TypeFragment, "main.shader", "FRAGMENT_SHADER=1")) return;
-		if(!pipeline.create()) return;
+		if(!pipeline.loadShaderGLSL(Shader::TypeVertex, "main.shader", "VERTEX_SHADER=1")) return false;
+		if(!pipeline.loadShaderGLSL(Shader::TypeFragment, "main.shader", "FRAGMENT_SHADER=1")) return false;
+		if(!pipeline.create()) return false;
 		
 		// create mesh geometry
 		#include "main_mesh.h"
 		vertex_buffer = device.createBuffer(Buffer::FlagVertex, mesh_vertices, sizeof(float32_t) * num_mesh_vertices);
 		index_buffer = device.createBuffer(Buffer::FlagIndex, mesh_indices, sizeof(uint32_t) * num_mesh_indices);
-		if(!vertex_buffer || !index_buffer) return;
+		if(!vertex_buffer || !index_buffer) return false;
 		
-		// start update timer
-		timer.setSingleShot(false);
-		connect(&timer, SIGNAL(timeout()), this, SLOT(update()));
-		timer.start(1000 / 60);
-		
-		// initialization flag
-		initialized = true;
+		return true;
 	}
 	
 	/*
 	 */
-	void QGLWidget::resizeGL(int32_t width, int32_t height) {
+	bool GLFWWindow::render_gl() {
 		
-		// check status
-		if(!initialized) return;
+		// glfw viewport
+		GLint width, height;
+		glfwGetFramebufferSize(window, &width, &height);
 		
 		// surface size
-		surface.setSize((uint32_t)width, (uint32_t)height);
-	}
-	
-	/*
-	 */
-	void QGLWidget::paintGL() {
-		
-		// check status
-		if(!initialized) return;
+		surface.setSize(width, height);
 		
 		// structures
 		struct CommonParameters {
@@ -128,12 +190,9 @@ namespace Tellusim {
 			Vector4f camera;
 		};
 		
-		// surface framebuffer
-		surface.setFramebufferID(defaultFramebufferObject());
-		
 		// widget target
 		Target target = device.createTarget(surface);
-		target.setClearColor(0.1f, 0.2f, 0.3f, 1.0f);
+		target.setClearColor(Color("#5586a4"));
 		target.begin();
 		{
 			// current time
@@ -159,6 +218,44 @@ namespace Tellusim {
 		}
 		target.end();
 		
-		device.check();
+		// swap buffers
+		glfwSwapBuffers(window);
+		
+		return true;
 	}
+	
+	/*
+	 */
+	bool GLFWWindow::run() {
+		
+		// main loop
+		while(!done) {
+			
+			// pool events
+			glfwPollEvents();
+			done |= (glfwWindowShouldClose(window) != 0);
+			done |= (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
+			
+			// render application
+			if(!render_gl()) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+}
+
+/*
+ */
+int32_t main(int32_t argc, char **argv) {
+	
+	// create window
+	Tellusim::GLFWWindow window;
+	if(!window.create()) return 1;
+	
+	// run application
+	window.run();
+	
+	return 0;
 }

@@ -60,7 +60,7 @@ namespace Tellusim {
 	
 	QVKWidget::~QVKWidget() {
 		
-		releaseVK();
+		release_vk();
 		
 		// release resources
 		release_buffers();
@@ -721,7 +721,7 @@ namespace Tellusim {
 		
 		// initialize application
 		if(!failed && !initialized) {
-			initialized = initVK();
+			initialized = init_vk();
 			if(!initialized) {
 				release_context();
 				failed = true;
@@ -730,7 +730,7 @@ namespace Tellusim {
 		
 		// render application
 		if(!failed && initialized) {
-			renderVK();
+			render_vk();
 		}
 	}
 	
@@ -769,7 +769,7 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool QVKWidget::initVK() {
+	bool QVKWidget::init_vk() {
 		
 		// create device
 		device = Device(surface);
@@ -804,7 +804,7 @@ namespace Tellusim {
 	
 	/*
 	 */
-	void QVKWidget::releaseVK() {
+	void QVKWidget::release_vk() {
 		
 		// finish device
 		if(device) device.finish();
@@ -818,7 +818,7 @@ namespace Tellusim {
 	
 	/*
 	 */
-	void QVKWidget::renderVK() {
+	void QVKWidget::render_vk() {
 		
 		// structures
 		struct CommonParameters {
@@ -832,7 +832,7 @@ namespace Tellusim {
 		uint32_t old_frame_index = frame_index;
 		VkResult result = vkAcquireNextImageKHR(vk_device, swap_chain, Maxu64, frames[frame_index].acquire_semaphore, VK_NULL_HANDLE, &frame_index);
 		if(result != VK_SUBOPTIMAL_KHR && result != VK_SUCCESS) {
-			if(result != VK_ERROR_OUT_OF_DATE_KHR) TS_LOGF(Error, "QVKWidget::renderVK(): can't acquire image %d\n", result);
+			if(result != VK_ERROR_OUT_OF_DATE_KHR) TS_LOGF(Error, "QVKWidget::render_vk(): can't acquire image %d\n", result);
 			return;
 		}
 		
@@ -852,7 +852,7 @@ namespace Tellusim {
 		target.begin();
 		{
 			// current time
-			float32_t time = Time::seconds();
+			float32_t time = (float32_t)Time::seconds();
 			
 			// common parameters
 			CommonParameters common_parameters;
@@ -894,7 +894,7 @@ namespace Tellusim {
 		
 		VkQueue queue = surface.getQueue();
 		if(vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE) != VK_SUCCESS) {
-			TS_LOG(Error, "QVKWidget::renderVK(): can't submit command buffer\n");
+			TS_LOG(Error, "QVKWidget::render_vk(): can't submit command buffer\n");
 			return;
 		}
 		
@@ -909,7 +909,7 @@ namespace Tellusim {
 		result = vkQueuePresentKHR(queue, &present_info);
 		
 		if(result != VK_SUBOPTIMAL_KHR && result != VK_ERROR_OUT_OF_DATE_KHR && result != VK_SUCCESS) {
-			TS_LOGF(Error, "QVKWidget::renderVK(): can't present image %d\n", result);
+			TS_LOGF(Error, "QVKWidget::render_vk(): can't present image %d\n", result);
 			return;
 		}
 		

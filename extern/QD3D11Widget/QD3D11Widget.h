@@ -58,10 +58,6 @@ namespace Tellusim {
 			
 		private:
 			
-			enum {
-				Samples = 4,
-			};
-			
 			/// create context
 			bool create_context();
 			void release_context();
@@ -75,8 +71,12 @@ namespace Tellusim {
 			void release_buffers();
 			
 			/// rendering loop
-			bool initD3D11();
-			void renderD3D11();
+			bool init_d3d11();
+			void render_d3d11();
+			
+			enum {
+				Samples = 4,
+			};
 			
 			bool failed = false;
 			bool initialized = false;

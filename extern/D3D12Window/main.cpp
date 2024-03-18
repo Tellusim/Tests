@@ -20,12 +20,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "QD3D12Widget.h"
+#include <d3d12.h>
+#include <dxgi1_4.h>
+#include <windows.h>
 
 #include <core/TellusimLog.h>
 #include <core/TellusimTime.h>
 #include <math/TellusimMath.h>
+#include <platform/TellusimContext.h>
+#include <platform/TellusimSurface.h>
+#include <platform/TellusimPipeline.h>
 #include <platform/TellusimCommand.h>
+#include <platform/TellusimDevice.h>
 
 /*
  */
@@ -37,30 +43,167 @@ namespace Tellusim {
 	
 	/*
 	 */
-	QD3D12Widget::QD3D12Widget(QWidget *parent) : ::QWidget(parent) {
+	class D3D12Window {
+			
+		public:
+			
+			D3D12Window();
+			~D3D12Window();
+			
+			// create window
+			bool create();
+			
+			// main loop
+			bool run();
+			
+		private:
+			
+			// window procedure
+			static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+			
+			// create context
+			bool create_context();
+			void release_context();
+			
+			/// create swap chain
+			bool create_swap_chain();
+			void release_swap_chain();
+			
+			/// create buffers
+			bool create_buffers();
+			void release_buffers();
+			
+			/// rendering loop
+			bool init_d3d12();
+			bool render_d3d12();
+			
+			enum {
+				NumFrames = 3,
+			};
+			
+			static bool done;
+			
+			uint32_t width = 0;
+			uint32_t height = 0;
+			
+			HWND window = nullptr;
+			
+			IDXGIFactory4 *dxgi_factory = nullptr;
+			ID3D12Device *d3d12_device = nullptr;
+			ID3D12CommandQueue *d3d12_queue = nullptr;
+			IDXGISwapChain3 *dxgi_swap_chain = nullptr;
+			
+			ID3D12Resource *render_targets[NumFrames] = {};
+			ID3D12DescriptorHeap *render_target_heap = nullptr;
+			D3D12_CPU_DESCRIPTOR_HANDLE render_target_views[NumFrames] = {};
+			
+			D3D12Context context;
+			D3D12Surface surface;
+			
+			Device device;
+			
+			Texture depth_stencil_texture;
+			
+			Pipeline pipeline;
+			Buffer vertex_buffer;
+			Buffer index_buffer;
+	};
+	
+	/*
+	 */
+	bool D3D12Window::done = false;
+	
+	/*
+	 */
+	D3D12Window::D3D12Window() {
 		
-		// configure widget
-		setAttribute(Qt::WA_PaintOnScreen);
-		setAttribute(Qt::WA_NoSystemBackground);
 	}
 	
-	QD3D12Widget::~QD3D12Widget() {
+	D3D12Window::~D3D12Window() {
 		
-		// release resources
-		release_buffers();
-		release_swap_chain();
+		// release context
 		release_context();
 	}
 	
 	/*
 	 */
-	QSize QD3D12Widget::sizeHint() const {
-		return QSize(1280, 720);
+	bool D3D12Window::create() {
+		
+		TS_ASSERT(window == nullptr);
+		
+		// module handle
+		HINSTANCE instance = GetModuleHandleW(nullptr);
+		
+		// window parameters
+		const wchar_t *class_name = L"Tellusim::D3D12Window";
+		const wchar_t *window_title = L"Tellusim::D3D12Window";
+		
+		// register class
+		WNDCLASSEXW window_class = {};
+		window_class.cbSize = sizeof(window_class);
+		window_class.style = CS_HREDRAW | CS_VREDRAW;
+		window_class.lpfnWndProc = window_proc;
+		window_class.hInstance = instance;
+		window_class.hCursor = LoadCursor(nullptr, IDC_ARROW);
+		window_class.hbrBackground = nullptr;
+		window_class.lpszMenuName = nullptr;
+		window_class.lpszClassName = class_name;
+		if(!RegisterClassExW(&window_class)) {
+			TS_LOGE(Error, "D3D12Window::create(): RegisterClassEx(): failed\n");
+			return false;
+		}
+		
+		// window size
+		width = 1600;
+		height = 900;
+		RECT rect = {};
+		rect.right = width;
+		rect.bottom = height;
+		uint32_t style = WS_OVERLAPPEDWINDOW;
+		AdjustWindowRectEx(&rect, style, 0, 0);
+		
+		// create window
+		LONG window_width = rect.right - rect.left;
+		LONG window_height = rect.bottom - rect.top;
+		window = CreateWindowExW(0, class_name, window_title, style, CW_USEDEFAULT, CW_USEDEFAULT, window_width, window_height, nullptr, nullptr, instance, nullptr);
+		if(window == nullptr) {
+			TS_LOGE(Error, "D3D12Window::create(): CreateWindowExW(): failed\n");
+			return false;
+		}
+		
+		// show window
+		ShowWindow(window, true);
+		
+		// create context
+		if(!create_context()) {
+			TS_LOGE(Error, "D3D12Window::create(): can't create context\n");
+			return false;
+		}
+		
+		// create swap chain
+		if(!create_swap_chain()) {
+			TS_LOGE(Error, "D3D12Window::create(): can't create swap chain\n");
+			return false;
+		}
+		
+		// create buffers
+		if(!create_buffers()) {
+			TS_LOGE(Error, "D3D12Window::create(): can't create buffers\n");
+			return false;
+		}
+		
+		// initialize d3d12
+		if(!init_d3d12()) {
+			TS_LOGE(Error, "D3D12Window::create(): can't initialize D3D12\n");
+			return false;
+		}
+		
+		return true;
 	}
 	
 	/*
 	 */
-	bool QD3D12Widget::create_context() {
+	bool D3D12Window::create_context() {
 		
 		TS_ASSERT(d3d12_device == nullptr);
 		
@@ -75,33 +218,21 @@ namespace Tellusim {
 			
 			// create factory
 			if(CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&dxgi_factory)) != S_OK) {
-				TS_LOG(Error, "QD3D12Widget::create_context(): can't create factory\n");
-				release_context();
+				TS_LOG(Error, "D3D12Window::create_context(): can't create factory\n");
 				return false;
 			}
 			
 			// enumerate adapters
-			IDXGIAdapter3 *adapter = nullptr;
-			IDXGIAdapter1 *adapter1 = nullptr;
-			if(dxgi_factory->EnumAdapters1(0, &adapter1) != S_OK || adapter1 == nullptr) {
-				TS_LOG(Error, "QD3D12Widget::create_context(): can't enum adapters\n");
-				release_context();
+			IDXGIAdapter1 *adapter = nullptr;
+			if(dxgi_factory->EnumAdapters1(0, &adapter) != S_OK || adapter == nullptr) {
+				TS_LOG(Error, "D3D12Window::create_context(): can't enum adapters\n");
 				return false;
 			}
-			if(adapter1->QueryInterface(IID_PPV_ARGS(&adapter)) != S_OK) {
-				TS_LOG(Error, "QD3D12Widget::create_context(): can't get adapter\n");
-				adapter1->Release();
-				release_context();
-				return false;
-			}
-			adapter1->Release();
 			
 			// create device
 			D3D_FEATURE_LEVEL feature_level = D3D_FEATURE_LEVEL_12_0;
 			if(D3D12CreateDevice(adapter, feature_level, IID_PPV_ARGS(&d3d12_device)) != S_OK) {
-				TS_LOG(Error, "QD3D12Widget::create_context(): can't create device\n");
-				adapter->Release();
-				release_context();
+				TS_LOG(Error, "D3D12Window::create_context(): can't create device\n");
 				return false;
 			}
 			adapter->Release();
@@ -111,21 +242,20 @@ namespace Tellusim {
 			queue_desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 			queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 			if(d3d12_device->CreateCommandQueue(&queue_desc, IID_PPV_ARGS(&d3d12_queue)) != S_OK) {
-				TS_LOG(Error, "QD3D12Widget::create_context(): can't create command queue\n");
-				release_context();
+				TS_LOG(Error, "D3D12Window::create_context(): can't create command queue\n");
 				return false;
 			}
 			
 			// create external context
 			if(!context.create(d3d12_device, d3d12_queue)) {
-				TS_LOG(Error, "QD3D12Widget::create_context(): can't create context\n");
+				TS_LOG(Error, "D3D12Window::create_context(): can't create context\n");
 				return false;
 			}
 			
 			// create external surface
 			surface = D3D12Surface(context);
 			if(!surface) {
-				TS_LOG(Error, "QD3D12Widget::create_context(): can't create context\n");
+				TS_LOG(Error, "D3D12Window::create_context(): can't create context\n");
 				return false;
 			}
 			
@@ -133,14 +263,14 @@ namespace Tellusim {
 			
 			// create internal context
 			if(!context.create()) {
-				TS_LOG(Error, "QD3D12Widget::create_context(): can't create context\n");
+				TS_LOG(Error, "D3D12Window::create_context(): can't create context\n");
 				return false;
 			}
 			
 			// create internal context
 			surface = D3D12Surface(context);
 			if(!surface) {
-				TS_LOG(Error, "QD3D12Widget::create_context(): can't create context\n");
+				TS_LOG(Error, "D3D12Window::create_context(): can't create context\n");
 				return false;
 			}
 			
@@ -152,19 +282,36 @@ namespace Tellusim {
 		#endif
 		
 		// configure window
-		if(dxgi_factory->MakeWindowAssociation((HWND)winId(), DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER) != S_OK) {
-			TS_LOG(Error, "QD3D12Widget::create_context(): can't set window association\n");
-			release_context();
+		if(dxgi_factory->MakeWindowAssociation(window, DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER) != S_OK) {
+			TS_LOG(Error, "D3D12Window::create_context(): can't set window association\n");
+			return false;
+		}
+		
+		// create device
+		device = Device(surface);
+		if(!device) {
+			TS_LOG(Error, "D3D12Window::create_context(): can't create device\n");
 			return false;
 		}
 		
 		return true;
 	}
 	
-	void QD3D12Widget::release_context() {
+	void D3D12Window::release_context() {
 		
+		// release resources
 		release_buffers();
 		release_swap_chain();
+		
+		// release resources
+		pipeline.clearPtr();
+		index_buffer.clearPtr();
+		vertex_buffer.clearPtr();
+		device.clearPtr();
+		
+		// release context
+		surface.clearPtr();
+		context.destroyPtr();
 		
 		// release device
 		#if EXTERNAL_DEVICE
@@ -179,33 +326,33 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool QD3D12Widget::create_swap_chain() {
+	bool D3D12Window::create_swap_chain() {
 		
 		TS_ASSERT(dxgi_swap_chain == nullptr);
 		
 		// create swap chain
 		IDXGISwapChain *swap_chain1 = nullptr;
 		DXGI_SWAP_CHAIN_DESC swap_chain_desc = {};
-		swap_chain_desc.BufferDesc.Width = widget_width;
-		swap_chain_desc.BufferDesc.Height = widget_height;
+		swap_chain_desc.BufferDesc.Width = width;
+		swap_chain_desc.BufferDesc.Height = height;
 		swap_chain_desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		swap_chain_desc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 		swap_chain_desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 		swap_chain_desc.SampleDesc.Count = 1;
 		swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		swap_chain_desc.BufferCount = NumFrames;
-		swap_chain_desc.OutputWindow = (HWND)winId();
+		swap_chain_desc.OutputWindow = window;
 		swap_chain_desc.Windowed = TRUE;
 		swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		swap_chain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 		if(dxgi_factory->CreateSwapChain(d3d12_queue, &swap_chain_desc, &swap_chain1) != S_OK) {
-			TS_LOG(Error, "QD3D12Widget::create_swap_chain(): can't create swap chain\n");
+			TS_LOG(Error, "D3D12Window::create_swap_chain(): can't create swap chain\n");
 			return false;
 		}
 		
 		// query swap chain interface
 		if(swap_chain1->QueryInterface(IID_PPV_ARGS(&dxgi_swap_chain)) != S_OK) {
-			TS_LOG(Error, "QD3D12Widget::create_swap_chain(): can't get swap chain\n");
+			TS_LOG(Error, "D3D12Window::create_swap_chain(): can't get swap chain\n");
 			swap_chain1->Release();
 			return false;
 		}
@@ -214,7 +361,7 @@ namespace Tellusim {
 		return true;
 	}
 	
-	void QD3D12Widget::release_swap_chain() {
+	void D3D12Window::release_swap_chain() {
 		
 		// release swap chain
 		if(dxgi_swap_chain) dxgi_swap_chain->Release();
@@ -223,15 +370,14 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool QD3D12Widget::create_buffers() {
+	bool D3D12Window::create_buffers() {
 		
-		TS_ASSERT(render_target_views[0].ptr == 0);
+		TS_ASSERT(!depth_stencil_texture);
 		
 		// get render targets
 		for(uint32_t i = 0; i < NumFrames; i++) {
 			if(dxgi_swap_chain->GetBuffer(i, IID_PPV_ARGS(&render_targets[i])) != S_OK) {
-				TS_LOG(Error, "QD3D12Widget::create_buffers(): can't get render target\n");
-				release_buffers();
+				TS_LOG(Error, "D3D12Window::create_buffers(): can't get render target\n");
 				return false;
 			}
 		}
@@ -242,8 +388,7 @@ namespace Tellusim {
 		render_target_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 		render_target_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		if(d3d12_device->CreateDescriptorHeap(&render_target_heap_desc, IID_PPV_ARGS(&render_target_heap)) != S_OK) {
-			TS_LOG(Error, "QD3D12Widget::create_buffers(): can't create descriptor heap\n");
-			release_buffers();
+			TS_LOG(Error, "D3D12Window::create_buffers(): can't create descriptor heap\n");
 			return false;
 		}
 		
@@ -260,64 +405,26 @@ namespace Tellusim {
 		}
 		
 		// create depth stencil
-		D3D12_HEAP_PROPERTIES depth_stencil_prop = {};
-		depth_stencil_prop.Type = D3D12_HEAP_TYPE_DEFAULT;
-		depth_stencil_prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		depth_stencil_prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		
-		D3D12_RESOURCE_DESC depth_stencil_desc = {};
-		depth_stencil_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		depth_stencil_desc.Width = widget_width;
-		depth_stencil_desc.Height = widget_height;
-		depth_stencil_desc.DepthOrArraySize = 1;
-		depth_stencil_desc.MipLevels = 1;
-		depth_stencil_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		depth_stencil_desc.SampleDesc.Count = 1;
-		depth_stencil_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		depth_stencil_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-		
-		D3D12_CLEAR_VALUE depth_stencil_clear = {};
-		depth_stencil_clear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		depth_stencil_clear.DepthStencil.Depth = 1.0f;
-		depth_stencil_clear.DepthStencil.Stencil = 0;
-		
-		if(d3d12_device->CreateCommittedResource(&depth_stencil_prop, D3D12_HEAP_FLAG_NONE, &depth_stencil_desc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depth_stencil_clear, IID_PPV_ARGS(&depth_stencil))) {
-			TS_LOG(Error, "QD3D12Widget::create_buffers(): can't create committed resource\n");
-			release_buffers();
+		depth_stencil_texture = device.createTexture2D(FormatDu24Su8, width, height, Texture::FlagTarget);
+		if(!depth_stencil_texture) {
+			TS_LOG(Error, "D3D12Window::create_buffers(): can't create depth stencil\n");
 			return false;
 		}
-		
-		// create depth stencil heap
-		D3D12_DESCRIPTOR_HEAP_DESC depth_stencil_heap_desc = {};
-		depth_stencil_heap_desc.NumDescriptors = 1;
-		depth_stencil_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		depth_stencil_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		if(d3d12_device->CreateDescriptorHeap(&depth_stencil_heap_desc, IID_PPV_ARGS(&depth_stencil_heap)) != S_OK) {
-			TS_LOG(Error, "QD3D12Widget::create_buffers(): can't create descriptor heap\n");
-			release_buffers();
-			return false;
-		}
-		
-		// create depth stencil view
-		depth_stencil_view.ptr = depth_stencil_heap->GetCPUDescriptorHandleForHeapStart().ptr;
-		d3d12_device->CreateDepthStencilView(depth_stencil, nullptr, depth_stencil_view);
 		
 		// surface size
-		surface.setSize(widget_width, widget_height);
+		surface.setSize(width, height);
 		
 		return true;
 	}
 	
-	void QD3D12Widget::release_buffers() {
+	void D3D12Window::release_buffers() {
 		
 		// finish device
 		if(device) device.finish();
 		
 		// release heaps
 		if(render_target_heap) render_target_heap->Release();
-		if(depth_stencil_heap) depth_stencil_heap->Release();
 		render_target_heap = nullptr;
-		depth_stencil_heap = nullptr;
 		
 		// release buffers
 		for(uint32_t i = 0; i < NumFrames; i++) {
@@ -325,69 +432,18 @@ namespace Tellusim {
 			render_target_views[i].ptr = 0;
 			render_targets[i] = nullptr;
 		}
-		if(depth_stencil) depth_stencil->Release();
-		depth_stencil_view.ptr = 0;
-		depth_stencil = nullptr;
+		
+		// release depth stencil
+		depth_stencil_texture.clearPtr();
 	}
 	
 	/*
 	 */
-	void QD3D12Widget::paintEvent(QPaintEvent *event) {
-		
-		Q_UNUSED(event);
-		
-		// widget size
-		uint32_t old_width = widget_width;
-		uint32_t old_height = widget_height;
-		widget_width = (uint32_t)width();
-		widget_height = (uint32_t)height();
-		
-		// create device
-		if(!failed && dxgi_swap_chain == nullptr) {
-			if(!failed && !create_context()) failed = true;
-			if(!failed && !create_swap_chain()) failed = true;
-			if(!failed && !create_buffers()) failed = true;
-			old_width = widget_width;
-			old_height = widget_height;
-		}
-		
-		// resize buffers
-		if(!failed && (old_width != widget_width || old_height != widget_height)) {
-			release_buffers();
-			if(dxgi_swap_chain->ResizeBuffers(NumFrames, widget_width, widget_height, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH) != S_OK) {
-				TS_LOG(Error, "QD3D12Widget::paintEvent(): can't resize swap chain\n");
-				release_context();
-				failed = true;
-			}
-			if(!failed && !create_buffers()) failed = true;
-		}
-		
-		// initialize application
-		if(!failed && !initialized) {
-			initialized = init_d3d12();
-			if(!initialized) {
-				release_context();
-				failed = true;
-			}
-		}
-		
-		// render application
-		if(!failed && initialized) {
-			render_d3d12();
-		}
-	}
-	
-	/*
-	 */
-	bool QD3D12Widget::init_d3d12() {
+	bool D3D12Window::init_d3d12() {
 		
 		// create surface
 		surface.setColorFormat(FormatRGBAu8n);
-		surface.setDepthFormat(FormatDu24Su8);
-		
-		// create device
-		device = Device(surface);
-		if(!device) return false;
+		surface.setDepthFormat(depth_stencil_texture.getFormat());
 		
 		// create pipeline
 		pipeline = device.createPipeline();
@@ -408,17 +464,12 @@ namespace Tellusim {
 		index_buffer = device.createBuffer(Buffer::FlagIndex, mesh_indices, sizeof(uint32_t) * num_mesh_indices);
 		if(!vertex_buffer || !index_buffer) return false;
 		
-		// start update timer
-		timer.setSingleShot(false);
-		connect(&timer, SIGNAL(timeout()), this, SLOT(update()));
-		timer.start(1000 / 60);
-		
 		return true;
 	}
 	
 	/*
 	 */
-	void QD3D12Widget::render_d3d12() {
+	bool D3D12Window::render_d3d12() {
 		
 		// structures
 		struct CommonParameters {
@@ -446,11 +497,11 @@ namespace Tellusim {
 		
 		// surface render target
 		surface.setRenderTargetView(render_target_views[frame].ptr);
-		surface.setDepthStencilView(depth_stencil_view.ptr);
+		surface.setDepthStencilView(D3D12Texture(depth_stencil_texture).getDepthStencilView());
 		
 		// widget target
 		Target target = device.createTarget(surface);
-		target.setClearColor(0.1f, 0.2f, 0.3f, 1.0f);
+		target.setClearColor(Color("#7fba00"));
 		target.begin();
 		{
 			// current time
@@ -487,12 +538,84 @@ namespace Tellusim {
 		// present swap chain
 		HRESULT result = dxgi_swap_chain->Present(1, 0);
 		if(result != DXGI_STATUS_OCCLUDED && result != S_OK) {
-			TS_LOGF(Error, "QD3D12Widget::render_d3d12(): can't present swap chain 0x%08x\n", result);
-			failed = true;
-			return;
+			TS_LOGF(Error, "D3D12Window::render_d3d12(): can't present swap chain 0x%08x\n", result);
+			return false;
 		}
 		
 		// flip device
 		device.flip();
+
+		return true;
 	}
+	
+	/*
+	 */
+	LRESULT CALLBACK D3D12Window::window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
+		
+		// destroy message
+		if(message == WM_DESTROY) done = true;
+		
+		// default window procedure
+		return DefWindowProcW(window, message, wparam, lparam);
+	}
+	
+	/*
+	 */
+	bool D3D12Window::run() {
+		
+		// main loop
+		while(!done) {
+			
+			// window size
+			RECT rect = {};
+			uint32_t old_width = width;
+			uint32_t old_height = height;
+			GetClientRect(window, &rect);
+			width = rect.right - rect.left;
+			height = rect.bottom - rect.top;
+			if(!width) width = old_width;
+			if(!height) height = old_height;
+			
+			// resize window
+			if(old_width != width || old_height != height) {
+				release_buffers();
+				if(dxgi_swap_chain->ResizeBuffers(NumFrames, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH) != S_OK) {
+					TS_LOG(Error, "D3D12Window::run(): can't resize swap chain\n");
+					return false;
+				}
+				if(!create_buffers()) {
+					TS_LOG(Error, "D3D12Window::run(): can't create buffers\n");
+					return false;
+				}
+			}
+			
+			// process messages
+			MSG message = {};
+			while(PeekMessageW(&message, nullptr, 0, 0, PM_NOREMOVE)) {
+				if(GetMessageW(&message, nullptr, 0, 0) == 0) break;
+				DispatchMessageW(&message);
+			}
+			
+			// render application
+			if(!render_d3d12()) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+}
+
+/*
+ */
+int32_t main(int32_t argc, char **argv) {
+	
+	// create window
+	Tellusim::D3D12Window window;
+	if(!window.create()) return 1;
+	
+	// run application
+	window.run();
+	
+	return 0;
 }

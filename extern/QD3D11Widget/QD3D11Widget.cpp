@@ -179,6 +179,7 @@ namespace Tellusim {
 		}
 		
 		// surface size
+		surface.setMultisample(Samples);
 		surface.setSize(widget_width, widget_height);
 		
 		return true;
@@ -286,7 +287,7 @@ namespace Tellusim {
 		
 		// initialize application
 		if(!failed && !initialized) {
-			initialized = initD3D11();
+			initialized = init_d3d11();
 			if(!initialized) {
 				release_context();
 				failed = true;
@@ -295,16 +296,13 @@ namespace Tellusim {
 		
 		// render application
 		if(!failed && initialized) {
-			renderD3D11();
+			render_d3d11();
 		}
 	}
 	
 	/*
 	 */
-	bool QD3D11Widget::initD3D11() {
-		
-		// create surface
-		surface.setMultisample(Samples);
+	bool QD3D11Widget::init_d3d11() {
 		
 		// create device
 		device = Device(surface);
@@ -339,7 +337,7 @@ namespace Tellusim {
 	
 	/*
 	 */
-	void QD3D11Widget::renderD3D11() {
+	void QD3D11Widget::render_d3d11() {
 		
 		// structures
 		struct CommonParameters {
@@ -359,7 +357,7 @@ namespace Tellusim {
 		target.begin();
 		{
 			// current time
-			float32_t time = Time::seconds();
+			float32_t time = (float32_t)Time::seconds();
 			
 			// common parameters
 			CommonParameters common_parameters;
@@ -384,7 +382,7 @@ namespace Tellusim {
 		// present swap chain
 		HRESULT result = dxgi_swap_chain->Present(1, 0);
 		if(result != DXGI_STATUS_OCCLUDED && result != S_OK) {
-			TS_LOGF(Error, "QD3D11Widget::renderD3D11(): can't present swap chain 0x%08x\n", result);
+			TS_LOGF(Error, "QD3D11Widget::render_d3d11(): can't present swap chain 0x%08x\n", result);
 			failed = true;
 		}
 	}

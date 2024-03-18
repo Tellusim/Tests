@@ -176,11 +176,11 @@ using namespace Tellusim;
 			
 			// widget target
 			Target target = device.createTarget(surface);
-			target.setClearColor(0.1f, 0.2f, 0.3f, 1.0f);
+			target.setClearColor(Color("#8a8b8c"));
 			target.begin();
 			{
 				// current time
-				float32_t time = Time::seconds();
+				float32_t time = (float32_t)Time::seconds();
 				
 				// common parameters
 				CommonParameters common_parameters;

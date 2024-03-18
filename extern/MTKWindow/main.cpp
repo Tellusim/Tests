@@ -38,9 +38,12 @@
 	// application finish launching
 	-(void)applicationDidFinishLaunching: (NSNotification*)notification {
 		
+		// screen scale
+		CGFloat scale = NSScreen.mainScreen.backingScaleFactor;
+		
 		// window size
-		CGFloat width = 1280.0f;
-		CGFloat height = 720.0f;
+		CGFloat width = 1600.0f / scale;
+		CGFloat height = 900.0f / scale;
 		NSRect screen = NSScreen.mainScreen.frame;
 		CGFloat x = (screen.size.width - width) / 2.0f;
 		CGFloat y = (screen.size.height - height) / 2.0f;

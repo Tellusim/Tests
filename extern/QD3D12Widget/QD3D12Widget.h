@@ -59,10 +59,6 @@ namespace Tellusim {
 			
 		private:
 			
-			enum {
-				NumFrames = 3,
-			};
-			
 			/// create context
 			bool create_context();
 			void release_context();
@@ -76,8 +72,12 @@ namespace Tellusim {
 			void release_buffers();
 			
 			/// rendering loop
-			bool initD3D12();
-			void renderD3D12();
+			bool init_d3d12();
+			void render_d3d12();
+			
+			enum {
+				NumFrames = 3,
+			};
 			
 			bool failed = false;
 			bool initialized = false;

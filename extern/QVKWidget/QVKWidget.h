@@ -58,18 +58,6 @@ namespace Tellusim {
 			
 		private:
 			
-			enum {
-				NumFrames = 2,
-			};
-			
-			struct Frame {
-				VkImage color_image = VK_NULL_HANDLE;
-				VkImageView color_image_view = VK_NULL_HANDLE;
-				VkSemaphore acquire_semaphore = VK_NULL_HANDLE;
-				VkSemaphore present_semaphore = VK_NULL_HANDLE;
-				VkFramebuffer framebuffer = VK_NULL_HANDLE;
-			};
-			
 			/// create context
 			bool create_context();
 			void release_context();
@@ -87,9 +75,21 @@ namespace Tellusim {
 			void barrier(VkImage image, VkAccessFlags src_mask, VkAccessFlags dest_mask, VkImageLayout old_layout, VkImageLayout new_layout, VkImageAspectFlags aspect_mask);
 			
 			/// rendering loop
-			bool initVK();
-			void releaseVK();
-			void renderVK();
+			bool init_vk();
+			void release_vk();
+			void render_vk();
+			
+			enum {
+				NumFrames = 2,
+			};
+			
+			struct Frame {
+				VkImage color_image = VK_NULL_HANDLE;
+				VkImageView color_image_view = VK_NULL_HANDLE;
+				VkSemaphore acquire_semaphore = VK_NULL_HANDLE;
+				VkSemaphore present_semaphore = VK_NULL_HANDLE;
+				VkFramebuffer framebuffer = VK_NULL_HANDLE;
+			};
 			
 			bool failed = false;
 			bool initialized = false;
