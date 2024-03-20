@@ -180,13 +180,6 @@ namespace Tellusim {
 	 */
 	bool GLSDLWindow::render_gl() {
 		
-		// window size
-		int32_t width, height;
-		SDL_GetWindowSize(window, &width, &height);
-		
-		// surface size
-		surface.setSize(width, height);
-		
 		// structures
 		struct CommonParameters {
 			Matrix4x4f projection;
@@ -242,6 +235,11 @@ namespace Tellusim {
 				done |= (event.type == SDL_QUIT);
 				done |= (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE);
 			}
+			
+			// surface size
+			int32_t width, height;
+			SDL_GetWindowSize(window, &width, &height);
+			surface.setSize(width, height);
 			
 			// render application
 			if(!render_gl()) {

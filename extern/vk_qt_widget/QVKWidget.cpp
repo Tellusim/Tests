@@ -826,7 +826,7 @@ namespace Tellusim {
 			Vector4f camera;
 		};
 		
-		// next image
+		// acquire next image
 		uint32_t old_frame_index = frame_index;
 		VkResult result = vkAcquireNextImageKHR(vk_device, swap_chain, Maxu64, frames[frame_index].acquire_semaphore, VK_NULL_HANDLE, &frame_index);
 		if(result != VK_SUBOPTIMAL_KHR && result != VK_SUCCESS) {

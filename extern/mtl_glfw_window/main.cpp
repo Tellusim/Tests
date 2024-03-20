@@ -194,21 +194,8 @@ namespace Tellusim {
 	 */
 	bool MTLGLFWWindow::render_mtl() {
 		
-		// framebuffer size
-		int32_t width, height;
-		glfwGetFramebufferSize(window, &width, &height);
-		
 		// next drawable
 		id<CAMetalDrawable> drawable = [layer nextDrawable];
-		
-		// depth stencil texture
-		if(!depth_stencil_texture || depth_stencil_texture.getWidth() != width || depth_stencil_texture.getHeight() != height) {
-			depth_stencil_texture = device.createTexture2D(surface.getDepthFormat(), width, height, Texture::FlagTarget);
-			if(!depth_stencil_texture) {
-				TS_LOG(Error, "MTLGLFWWindow::render_mtl(): can't create depth stencil\n");
-				return false;
-			}
-		}
 		
 		// render pass descriptor
 		MTLRenderPassDescriptor *descriptor = [MTLRenderPassDescriptor renderPassDescriptor];
@@ -224,10 +211,7 @@ namespace Tellusim {
 		descriptor.stencilAttachment.loadAction = MTLLoadActionClear;
 		descriptor.stencilAttachment.storeAction = MTLStoreActionStore;
 		descriptor.stencilAttachment.clearStencil = 0x00;
-		
-		// surface parameters
 		surface.setDescriptor((__bridge void*)descriptor);
-		surface.setSize(width, height);
 		
 		// structures
 		struct CommonParameters {
@@ -289,6 +273,20 @@ namespace Tellusim {
 			glfwPollEvents();
 			done |= (glfwWindowShouldClose(window) != 0);
 			done |= (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
+			
+			// surface size
+			int32_t width, height;
+			glfwGetFramebufferSize(window, &width, &height);
+			surface.setSize(width, height);
+			
+			// resize buffers
+			if(!depth_stencil_texture || depth_stencil_texture.getWidth() != (uint32_t)width || depth_stencil_texture.getHeight() != (uint32_t)height) {
+				depth_stencil_texture = device.createTexture2D(surface.getDepthFormat(), width, height, Texture::FlagTarget);
+				if(!depth_stencil_texture) {
+					TS_LOG(Error, "MTLGLFWWindow::run(): can't create depth stencil\n");
+					return false;
+				}
+			}
 			
 			@autoreleasepool {
 				

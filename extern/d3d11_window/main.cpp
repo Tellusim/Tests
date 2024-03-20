@@ -513,7 +513,7 @@ namespace Tellusim {
 			if(!width) width = old_width;
 			if(!height) height = old_height;
 			
-			// resize window
+			// resize buffers
 			if(old_width != width || old_height != height) {
 				release_buffers();
 				if(dxgi_swap_chain->ResizeBuffers(1, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH) != S_OK) {

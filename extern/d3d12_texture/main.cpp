@@ -84,7 +84,7 @@ int32_t main(int32_t argc, char **argv) {
 	// this resource will be used as a pixel shader resource only
 	D3D12Texture texture = D3D12Texture(device.createTexture());
 	uint32_t state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	if(!texture.create(Texture::Type2D, surface.getD3D12Texture(), state, surface.getFlags())) return 1;
+	if(!texture.create(Texture::Type2D, surface.getD3D12Texture(), state)) return 1;
 	TS_LOGF(Message, "%s\n", texture.getDescription().get());
 	
 	// create target

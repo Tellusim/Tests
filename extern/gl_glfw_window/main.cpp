@@ -172,13 +172,6 @@ namespace Tellusim {
 	 */
 	bool GLGLFWWindow::render_gl() {
 		
-		// framebuffer size
-		int32_t width, height;
-		glfwGetFramebufferSize(window, &width, &height);
-		
-		// surface size
-		surface.setSize(width, height);
-		
 		// structures
 		struct CommonParameters {
 			Matrix4x4f projection;
@@ -232,6 +225,11 @@ namespace Tellusim {
 			glfwPollEvents();
 			done |= (glfwWindowShouldClose(window) != 0);
 			done |= (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
+			
+			// surface size
+			int32_t width, height;
+			glfwGetFramebufferSize(window, &width, &height);
+			surface.setSize(width, height);
 			
 			// render application
 			if(!render_gl()) {

@@ -22,7 +22,8 @@
 
 #include <vulkan/vulkan.h>
 
-#include <GLFW/glfw3.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_vulkan.h>
 
 #include <core/TellusimLog.h>
 #include <core/TellusimTime.h>
@@ -39,12 +40,12 @@ namespace Tellusim {
 	
 	/*
 	 */
-	class VKGLFWWindow {
+	class VKSDLWindow {
 			
 		public:
 			
-			VKGLFWWindow();
-			~VKGLFWWindow();
+			VKSDLWindow();
+			~VKSDLWindow();
 			
 			// create window
 			bool create();
@@ -88,7 +89,7 @@ namespace Tellusim {
 			
 			bool done = false;
 			
-			GLFWwindow *window = nullptr;
+			SDL_Window *window = nullptr;
 			
 			VKContext context;
 			VKSurface surface;
@@ -119,52 +120,55 @@ namespace Tellusim {
 	
 	/*
 	 */
-	VKGLFWWindow::VKGLFWWindow() {
+	VKSDLWindow::VKSDLWindow() {
 		
 	}
 	
-	VKGLFWWindow::~VKGLFWWindow() {
+	VKSDLWindow::~VKSDLWindow() {
 		
 		// release resources
 		release_buffers();
 		release_swap_chain();
 		release_render_pass();
 		
-		// terminate GLFW
-		if(window) glfwDestroyWindow(window);
-		glfwTerminate();
+		// terminate SDL
+		if(window) SDL_DestroyWindow(window);
+		SDL_Quit();
 	}
 	
 	/*
 	 */
-	bool VKGLFWWindow::create() {
+	bool VKSDLWindow::create() {
 		
 		TS_ASSERT(window == nullptr);
 		
-		// initialize GLFW
-		if(!glfwInit()) {
-			TS_LOG(Error, "VKGLFWWindow::create(): can't init GLFW\n");
+		// initialize SDL
+		if(SDL_Init(SDL_INIT_VIDEO) < 0) {
+			TS_LOGF(Error, "GLSDLWindow::create(): can't init SDL %s\n", SDL_GetError());
 			return false;
 		}
 		
 		// create window
-		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		window = glfwCreateWindow(1600, 900, "Vulkan Tellusim::VKGLFWWindow", nullptr, nullptr);
+		window = SDL_CreateWindow("Vulkan Tellusim::VKSDLWindow", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 900, SDL_WINDOW_VULKAN);
 		if(!window) {
-			TS_LOG(Error, "VKGLFWWindow::create(): can't create window\n");
+			TS_LOGF(Error, "VKSDLWindow::create(): can't create window %s\n", SDL_GetError());
 			return false;
 		}
 		
 		// required extensions
 		uint32_t num_extensions = 0;
-		const char **extensions = glfwGetRequiredInstanceExtensions(&num_extensions);
-		for(uint32_t i = 0; i < num_extensions; i++) {
-			VKContext::addContextExtension(extensions[i]);
+		if(SDL_Vulkan_GetInstanceExtensions(window, &num_extensions, nullptr)) {
+			Array<const char*> extensions(num_extensions);
+			if(SDL_Vulkan_GetInstanceExtensions(window, &num_extensions, extensions.get())) {
+				for(uint32_t i = 0; i < num_extensions; i++) {
+					VKContext::addContextExtension(extensions[i]);
+				}
+			}
 		}
 		
 		// create context
 		if(!context.create()) {
-			TS_LOG(Error, "VKGLFWWindow::create(): can't create context\n");
+			TS_LOG(Error, "VKSDLWindow::create(): can't create context\n");
 			return false;
 		}
 		
@@ -173,40 +177,40 @@ namespace Tellusim {
 		vk_device = context.getDevice();
 		
 		// create window surface
-		if(VKContext::error(glfwCreateWindowSurface(instance, window, nullptr, &vk_surface))) {
-			TS_LOG(Error, "VKGLFWWindow::create(): can't create surface\n");
+		if(!SDL_Vulkan_CreateSurface(window, instance, &vk_surface)) {
+			TS_LOG(Error, "VKSDLWindow::create(): can't create surface\n");
 			return false;
 		}
 		
 		// create surface
 		surface = VKSurface(context);
 		if(!surface) {
-			TS_LOG(Error, "VKGLFWWindow::create(): can't create context\n");
+			TS_LOG(Error, "VKSDLWindow::create(): can't create context\n");
 			return false;
 		}
 		
 		// create device
 		device = Device(surface);
 		if(!device) {
-			TS_LOG(Error, "VKGLFWWindow::create(): can't create device\n");
+			TS_LOG(Error, "VKSDLWindow::create(): can't create device\n");
 			return false;
 		}
 		
 		// create render pass
 		if(!create_render_pass()) {
-			TS_LOG(Error, "VKGLFWWindow::create(): can't create render pass\n");
+			TS_LOG(Error, "VKSDLWindow::create(): can't create render pass\n");
 			return false;
 		}
 		
 		// create swap chain
 		if(!create_swap_chain()) {
-			TS_LOG(Error, "VKGLFWWindow::create(): can't create swap chain\n");
+			TS_LOG(Error, "VKSDLWindow::create(): can't create swap chain\n");
 			return false;
 		}
 		
 		// initialize Vulkan
 		if(!create_vk()) {
-			TS_LOG(Error, "VKGLFWWindow::create(): can't create Vulkan\n");
+			TS_LOG(Error, "VKSDLWindow::create(): can't create Vulkan\n");
 			return false;
 		}
 		
@@ -215,14 +219,14 @@ namespace Tellusim {
 	
 	/*
 	 */
-	VkPipelineStageFlags VKGLFWWindow::get_stage_mask(VkAccessFlags access_mask) const {
+	VkPipelineStageFlags VKSDLWindow::get_stage_mask(VkAccessFlags access_mask) const {
 		VkPipelineStageFlags stage_mask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 		if(access_mask & VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT) stage_mask |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		if(access_mask & VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT) stage_mask |= VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 		return stage_mask;
 	}
 	
-	void VKGLFWWindow::barrier(VkImage image, VkAccessFlags src_mask, VkAccessFlags dest_mask, VkImageLayout old_layout, VkImageLayout new_layout, VkImageAspectFlags aspect_mask) {
+	void VKSDLWindow::barrier(VkImage image, VkAccessFlags src_mask, VkAccessFlags dest_mask, VkImageLayout old_layout, VkImageLayout new_layout, VkImageAspectFlags aspect_mask) {
 		
 		VkImageMemoryBarrier barrier = {};
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -248,12 +252,12 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool VKGLFWWindow::create_render_pass() {
+	bool VKSDLWindow::create_render_pass() {
 		
 		// check surface queue
 		VkBool32 surface_supported = VK_FALSE;
 		if(VKContext::error(vkGetPhysicalDeviceSurfaceSupportKHR(adapter, context.getFamily(), vk_surface, &surface_supported)) || surface_supported == false) {
-			TS_LOG(Error, "VKGLFWWindow::create_render_pass(): surface is not supported by adapter\n");
+			TS_LOG(Error, "VKSDLWindow::create_render_pass(): surface is not supported by adapter\n");
 			return false;
 		}
 		
@@ -264,12 +268,12 @@ namespace Tellusim {
 		// surface color format
 		uint32_t num_color_formats = 0;
 		if(VKContext::error(vkGetPhysicalDeviceSurfaceFormatsKHR(adapter, vk_surface, &num_color_formats, nullptr)) || num_color_formats == 0) {
-			TS_LOG(Error, "VKGLFWWindow::create_render_pass(): can't get surface formats count\n");
+			TS_LOG(Error, "VKSDLWindow::create_render_pass(): can't get surface formats count\n");
 			return false;
 		}
 		Array<VkSurfaceFormatKHR> color_formats(num_color_formats);
 		if(vkGetPhysicalDeviceSurfaceFormatsKHR(adapter, vk_surface, &num_color_formats, color_formats.get())) {
-			TS_LOG(Error, "VKGLFWWindow::create_render_pass(): can't get surface formats\n");
+			TS_LOG(Error, "VKSDLWindow::create_render_pass(): can't get surface formats\n");
 			return false;
 		}
 		for(uint32_t i = 0; i < color_formats.size(); i++) {
@@ -282,7 +286,7 @@ namespace Tellusim {
 			}
 		}
 		if(surface.getColorFormat() == FormatUnknown) {
-			TS_LOG(Error, "VKGLFWWindow::create_render_pass(): unknown color format\n");
+			TS_LOG(Error, "VKSDLWindow::create_render_pass(): unknown color format\n");
 			return false;
 		}
 		
@@ -296,7 +300,7 @@ namespace Tellusim {
 			}
 		}
 		if(surface.getDepthFormat() == FormatUnknown) {
-			TS_LOG(Error, "VKGLFWWindow::create_render_pass(): unknown depth format\n");
+			TS_LOG(Error, "VKSDLWindow::create_render_pass(): unknown depth format\n");
 			return false;
 		}
 		
@@ -358,7 +362,7 @@ namespace Tellusim {
 		
 		// create render pass
 		if(VKContext::error(vkCreateRenderPass(vk_device, &render_pass_info, nullptr, &render_pass))) {
-			TS_LOG(Error, "VKGLFWWindow::create_render_pass(): can't create render pass\n");
+			TS_LOG(Error, "VKSDLWindow::create_render_pass(): can't create render pass\n");
 			return false;
 		}
 		
@@ -368,7 +372,7 @@ namespace Tellusim {
 		return true;
 	}
 	
-	void VKGLFWWindow::release_render_pass() {
+	void VKSDLWindow::release_render_pass() {
 		
 		// release render pass
 		if(render_pass) vkDestroyRenderPass(vk_device, render_pass, nullptr);
@@ -377,7 +381,7 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool VKGLFWWindow::create_swap_chain() {
+	bool VKSDLWindow::create_swap_chain() {
 		
 		// save swap chain
 		VkSwapchainKHR old_swap_chain = swap_chain;
@@ -385,19 +389,19 @@ namespace Tellusim {
 		// surface present mode
 		uint32_t num_present_modes = 0;
 		if(VKContext::error(vkGetPhysicalDeviceSurfacePresentModesKHR(adapter, vk_surface, &num_present_modes, nullptr)) || num_present_modes == 0) {
-			TS_LOG(Error, "VKGLFWWindow::create_swap_chain(): can't get surface present modes count\n");
+			TS_LOG(Error, "VKSDLWindow::create_swap_chain(): can't get surface present modes count\n");
 			return false;
 		}
 		Array<VkPresentModeKHR> present_modes(num_present_modes);
 		if(VKContext::error(vkGetPhysicalDeviceSurfacePresentModesKHR(adapter, vk_surface, &num_present_modes, present_modes.get()))) {
-			TS_LOG(Error, "VKGLFWWindow::create_swap_chain(): can't get surface present modes\n");
+			TS_LOG(Error, "VKSDLWindow::create_swap_chain(): can't get surface present modes\n");
 			return false;
 		}
 		
 		// surface capabilities
 		VkSurfaceCapabilitiesKHR capabilities = {};
 		if(VKContext::error(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(adapter, vk_surface, &capabilities))) {
-			TS_LOG(Error, "VKGLFWWindow::create_swap_chain(): can't get surface capabilities\n");
+			TS_LOG(Error, "VKSDLWindow::create_swap_chain(): can't get surface capabilities\n");
 			return false;
 		}
 		
@@ -408,7 +412,7 @@ namespace Tellusim {
 		else if(capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR) composite_alpha = VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR;
 		else if(capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR) composite_alpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
 		else {
-			TS_LOG(Error, "VKGLFWWindow::create_swap_chain(): can't select composite alpha\n");
+			TS_LOG(Error, "VKSDLWindow::create_swap_chain(): can't select composite alpha\n");
 			return false;
 		}
 		
@@ -442,7 +446,7 @@ namespace Tellusim {
 		swap_chain_info.oldSwapchain = old_swap_chain;
 		
 		if(VKContext::error(vkCreateSwapchainKHR(vk_device, &swap_chain_info, nullptr, &swap_chain))) {
-			TS_LOG(Error, "VKGLFWWindow::create_swap_chain(): can't create swap chain\n");
+			TS_LOG(Error, "VKSDLWindow::create_swap_chain(): can't create swap chain\n");
 			return false;
 		}
 		
@@ -452,12 +456,12 @@ namespace Tellusim {
 		// swap chain images
 		uint32_t num_swap_chain_images = 0;
 		if(VKContext::error(vkGetSwapchainImagesKHR(vk_device, swap_chain, &num_swap_chain_images, nullptr)) || num_swap_chain_images == 0) {
-			TS_LOG(Error, "VKGLFWWindow::create_swap_chain(): can't get swap chain images count\n");
+			TS_LOG(Error, "VKSDLWindow::create_swap_chain(): can't get swap chain images count\n");
 			return false;
 		}
 		Array<VkImage> swap_chain_images(num_swap_chain_images);
 		if(VKContext::error(vkGetSwapchainImagesKHR(vk_device, swap_chain, &num_swap_chain_images, swap_chain_images.get()))) {
-			TS_LOG(Error, "VKGLFWWindow::create_swap_chain(): can't get swap chain images\n");
+			TS_LOG(Error, "VKSDLWindow::create_swap_chain(): can't get swap chain images\n");
 			return false;
 		}
 		
@@ -485,13 +489,13 @@ namespace Tellusim {
 			
 			// create acquire semaphore
 			if(frame.acquire_semaphore == VK_NULL_HANDLE && VKContext::error(vkCreateSemaphore(vk_device, &semaphore_info, nullptr, &frame.acquire_semaphore))) {
-				TS_LOG(Error, "VKGLFWWindow::create_swap_chain(): can't create acquire semaphore\n");
+				TS_LOG(Error, "VKSDLWindow::create_swap_chain(): can't create acquire semaphore\n");
 				return false;
 			}
 			
 			// create present semaphore
 			if(frame.present_semaphore == VK_NULL_HANDLE && VKContext::error(vkCreateSemaphore(vk_device, &semaphore_info, nullptr, &frame.present_semaphore))) {
-				TS_LOG(Error, "VKGLFWWindow::create_swap_chain(): can't create present semaphore\n");
+				TS_LOG(Error, "VKSDLWindow::create_swap_chain(): can't create present semaphore\n");
 				return false;
 			}
 			
@@ -499,7 +503,7 @@ namespace Tellusim {
 			frame.color_image = swap_chain_images[i];
 			color_image_view_info.image = swap_chain_images[i];
 			if(VKContext::error(vkCreateImageView(vk_device, &color_image_view_info, nullptr, &frame.color_image_view))) {
-				TS_LOG(Error, "VKGLFWWindow::create_swap_chain(): can't create swap chain image view\n");
+				TS_LOG(Error, "VKSDLWindow::create_swap_chain(): can't create swap chain image view\n");
 				return false;
 			}
 			
@@ -510,7 +514,7 @@ namespace Tellusim {
 		return true;
 	}
 	
-	void VKGLFWWindow::release_swap_chain() {
+	void VKSDLWindow::release_swap_chain() {
 		
 		// release frame resources
 		for(uint32_t i = 0; i < frames.size(); i++) {
@@ -532,12 +536,12 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool VKGLFWWindow::create_buffers() {
+	bool VKSDLWindow::create_buffers() {
 		
 		// create depth stencil texture
 		depth_stencil_texture = device.createTexture2D(surface.getDepthFormat(), surface.getWidth(), surface.getHeight(), Texture::FlagTarget);
 		if(!depth_stencil_texture) {
-			TS_LOG(Error, "VKGLFWWindow::create_buffers(): can't create depth stencil\n");
+			TS_LOG(Error, "VKSDLWindow::create_buffers(): can't create depth stencil\n");
 			return false;
 		}
 		
@@ -563,7 +567,7 @@ namespace Tellusim {
 			TS_ASSERT(frame.framebuffer == VK_NULL_HANDLE);
 			attachments[0] = frame.color_image_view;
 			if(VKContext::error(vkCreateFramebuffer(vk_device, &framebuffer_info, nullptr, &frame.framebuffer))) {
-				TS_LOG(Error, "VKGLFWWindow::create_buffers(): can't create framebuffer\n");
+				TS_LOG(Error, "VKSDLWindow::create_buffers(): can't create framebuffer\n");
 				release_buffers();
 				return false;
 			}
@@ -572,7 +576,7 @@ namespace Tellusim {
 		return true;
 	}
 	
-	void VKGLFWWindow::release_buffers() {
+	void VKSDLWindow::release_buffers() {
 		
 		// finish device
 		if(device) device.finish();
@@ -592,7 +596,7 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool VKGLFWWindow::create_vk() {
+	bool VKSDLWindow::create_vk() {
 		
 		// create pipeline
 		pipeline = device.createPipeline();
@@ -618,7 +622,7 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool VKGLFWWindow::render_vk() {
+	bool VKSDLWindow::render_vk() {
 		
 		// acquire next image
 		uint32_t old_frame_index = frame_index;
@@ -630,7 +634,7 @@ namespace Tellusim {
 			result = vkAcquireNextImageKHR(vk_device, swap_chain, Maxu64, frames[frame_index].acquire_semaphore, VK_NULL_HANDLE, &frame_index);
 		}
 		if(result != VK_SUBOPTIMAL_KHR && VKContext::error(result)) {
-			if(result != VK_ERROR_OUT_OF_DATE_KHR) TS_LOG(Error, "VKGLFWWindow::render_vk(): can't acquire image\n");
+			if(result != VK_ERROR_OUT_OF_DATE_KHR) TS_LOG(Error, "VKSDLWindow::render_vk(): can't acquire image\n");
 			return false;
 		}
 		
@@ -700,7 +704,7 @@ namespace Tellusim {
 		
 		VkQueue queue = surface.getQueue();
 		if(VKContext::error(vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE))) {
-			TS_LOG(Error, "VKGLFWWindow::render_vk(): can't submit command buffer\n");
+			TS_LOG(Error, "VKSDLWindow::render_vk(): can't submit command buffer\n");
 			return false;
 		}
 		
@@ -715,7 +719,7 @@ namespace Tellusim {
 		result = vkQueuePresentKHR(queue, &present_info);
 		
 		if(result != VK_SUBOPTIMAL_KHR && result != VK_ERROR_OUT_OF_DATE_KHR && result != VK_SUCCESS) {
-			TS_LOGF(Error, "VKGLFWWindow::render_vk(): can't present image %d\n", result);
+			TS_LOGF(Error, "VKSDLWindow::render_vk(): can't present image %d\n", result);
 			return false;
 		}
 		
@@ -727,19 +731,21 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool VKGLFWWindow::run() {
+	bool VKSDLWindow::run() {
 		
 		// main loop
 		while(!done) {
 			
 			// pool events
-			glfwPollEvents();
-			done |= (glfwWindowShouldClose(window) != 0);
-			done |= (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
+			SDL_Event event = {};
+			while(SDL_PollEvent(&event)) {
+				done |= (event.type == SDL_QUIT);
+				done |= (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE);
+			}
 			
 			// resize buffers
 			int32_t width, height;
-			glfwGetFramebufferSize(window, &width, &height);
+			SDL_GetWindowSize(window, &width, &height);
 			if(!depth_stencil_texture || depth_stencil_texture.getWidth() != (uint32_t)width || depth_stencil_texture.getHeight() != (uint32_t)height) {
 				release_buffers();
 				if(!create_swap_chain()) return false;
@@ -761,7 +767,7 @@ namespace Tellusim {
 int32_t main(int32_t argc, char **argv) {
 	
 	// create window
-	Tellusim::VKGLFWWindow window;
+	Tellusim::VKSDLWindow window;
 	if(!window.create()) return 1;
 	
 	// run application
