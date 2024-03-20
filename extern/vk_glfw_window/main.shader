@@ -20,22 +20,55 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <QtWidgets/QApplication>
-
-#include "QD3D11Widget.h"
+#version 420 core
 
 /*
  */
-int32_t main(int32_t argc, char **argv) {
+#if VERTEX_SHADER
 	
-	// application
-	QApplication app(argc, argv);
+	layout(location = 0) in vec4 in_position;
+	layout(location = 1) in vec3 in_normal;
 	
-	// create window
-	Tellusim::QD3D11Widget window;
-	window.setWindowTitle("Direct3D11 Tellusim::D3D11QtWidget");
-	window.show();
+	layout(row_major, binding = 0) uniform CommonParameters {
+		mat4 projection;
+		mat4 modelview;
+		mat4 transform;
+		vec4 camera;
+	};
 	
-	// run application
-	return app.exec();
-}
+	layout(location = 0) out vec3 s_normal;
+	layout(location = 1) out vec3 s_direction;
+	
+	/*
+	 */
+	void main() {
+		
+		vec4 position = transform * in_position;
+		gl_Position = projection * (modelview * position);
+		
+		s_normal = (transform * vec4(in_normal, 0.0f)).xyz;
+		
+		s_direction = camera.xyz - position.xyz;
+	}
+	
+#elif FRAGMENT_SHADER
+	
+	layout(location = 0) in vec3 s_normal;
+	layout(location = 1) in vec3 s_direction;
+	
+	layout(location = 0) out vec4 out_color;
+	
+	/*
+	 */
+	void main() {
+		
+		vec3 normal = normalize(s_normal);
+		vec3 direction = normalize(s_direction);
+		
+		float diffuse = clamp(dot(direction, normal), 0.0f, 1.0f) * 0.75f;
+		float specular = pow(clamp(dot(reflect(-direction, normal), direction), 0.0f, 1.0f), 16.0f) * 0.75f;
+		
+		out_color = vec4(diffuse + specular);
+	}
+	
+#endif

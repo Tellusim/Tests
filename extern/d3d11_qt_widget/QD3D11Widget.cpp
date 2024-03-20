@@ -353,7 +353,7 @@ namespace Tellusim {
 		
 		// widget target
 		Target target = device.createTarget(surface);
-		target.setClearColor(0.1f, 0.2f, 0.3f, 1.0f);
+		target.setClearColor(Color("#7fba00"));
 		target.begin();
 		{
 			// current time

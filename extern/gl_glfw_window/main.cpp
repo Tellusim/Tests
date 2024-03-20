@@ -37,12 +37,12 @@ namespace Tellusim {
 	
 	/*
 	 */
-	class GLFWWindow {
+	class GLGLFWWindow {
 			
 		public:
 			
-			GLFWWindow();
-			~GLFWWindow();
+			GLGLFWWindow();
+			~GLGLFWWindow();
 			
 			// create window
 			bool create();
@@ -52,10 +52,7 @@ namespace Tellusim {
 			
 		private:
 			
-			/// error callback
-			static void error_callback(int error, const char *str);
-			
-			/// rendering loop
+			// rendering loop
 			bool create_gl();
 			bool render_gl();
 			
@@ -75,11 +72,11 @@ namespace Tellusim {
 	
 	/*
 	 */
-	GLFWWindow::GLFWWindow() {
+	GLGLFWWindow::GLGLFWWindow() {
 		
 	}
 	
-	GLFWWindow::~GLFWWindow() {
+	GLGLFWWindow::~GLGLFWWindow() {
 		
 		// terminate GLFW
 		if(window) glfwDestroyWindow(window);
@@ -88,13 +85,13 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool GLFWWindow::create() {
+	bool GLGLFWWindow::create() {
 		
 		TS_ASSERT(window == nullptr);
 		
 		// initialize GLFW
 		if(!glfwInit()) {
-			TS_LOG(Error, "GLFWWindow::create(): can't init GLFW\n");
+			TS_LOG(Error, "GLGLFWWindow::create(): can't init GLFW\n");
 			return false;
 		}
 		
@@ -103,9 +100,9 @@ namespace Tellusim {
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
 		glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-		window = glfwCreateWindow(1600, 900, "Tellusim::GLFWWindow", nullptr, nullptr);
+		window = glfwCreateWindow(1600, 900, "OpenGL Tellusim::GLGLFWWindow", nullptr, nullptr);
 		if(!window) {
-			TS_LOG(Error, "GLFWWindow::create(): can't create window\n");
+			TS_LOG(Error, "GLGLFWWindow::create(): can't create window\n");
 			return false;
 		}
 		
@@ -114,27 +111,27 @@ namespace Tellusim {
 		
 		// create external context
 		if(!context.create(nullptr)) {
-			TS_LOG(Error, "GLFWWindow::create(): can't create context\n");
+			TS_LOG(Error, "GLGLFWWindow::create(): can't create context\n");
 			return false;
 		}
 		
 		// create external surface
 		surface = GLSurface(context);
 		if(!surface) {
-			TS_LOG(Error, "GLFWWindow::create(): can't create context\n");
+			TS_LOG(Error, "GLGLFWWindow::create(): can't create context\n");
 			return false;
 		}
 		
 		// create device
 		device = Device(surface);
 		if(!device) {
-			TS_LOG(Error, "GLFWWindow::create(): can't create device\n");
+			TS_LOG(Error, "GLGLFWWindow::create(): can't create device\n");
 			return false;
 		}
 		
 		// initialize OpenGL
 		if(!create_gl()) {
-			TS_LOG(Error, "GLFWWindow::create(): can't create GL\n");
+			TS_LOG(Error, "GLGLFWWindow::create(): can't create OpenGL\n");
 			return false;
 		}
 		
@@ -143,7 +140,7 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool GLFWWindow::create_gl() {
+	bool GLGLFWWindow::create_gl() {
 		
 		// create surface
 		surface.setColorFormat(FormatRGBAu8n);
@@ -173,10 +170,10 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool GLFWWindow::render_gl() {
+	bool GLGLFWWindow::render_gl() {
 		
-		// GLFW framebuffer
-		GLint width, height;
+		// framebuffer size
+		int32_t width, height;
 		glfwGetFramebufferSize(window, &width, &height);
 		
 		// surface size
@@ -226,7 +223,7 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool GLFWWindow::run() {
+	bool GLGLFWWindow::run() {
 		
 		// main loop
 		while(!done) {
@@ -251,7 +248,7 @@ namespace Tellusim {
 int32_t main(int32_t argc, char **argv) {
 	
 	// create window
-	Tellusim::GLFWWindow window;
+	Tellusim::GLGLFWWindow window;
 	if(!window.create()) return 1;
 	
 	// run application

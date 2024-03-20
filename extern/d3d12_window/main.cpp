@@ -66,15 +66,15 @@ namespace Tellusim {
 			bool create_context();
 			void release_context();
 			
-			/// create swap chain
+			// create swap chain
 			bool create_swap_chain();
 			void release_swap_chain();
 			
-			/// create buffers
+			// create buffers
 			bool create_buffers();
 			void release_buffers();
 			
-			/// rendering loop
+			// rendering loop
 			bool create_d3d12();
 			bool render_d3d12();
 			
@@ -103,11 +103,11 @@ namespace Tellusim {
 			
 			Device device;
 			
-			Texture depth_stencil_texture;
-			
 			Pipeline pipeline;
 			Buffer vertex_buffer;
 			Buffer index_buffer;
+			
+			Texture depth_stencil_texture;
 	};
 	
 	/*
@@ -140,7 +140,7 @@ namespace Tellusim {
 		
 		// window parameters
 		const wchar_t *class_name = L"Tellusim::D3D12Window";
-		const wchar_t *window_title = L"Tellusim::D3D12Window";
+		const wchar_t *window_title = L"Direct3D12 Tellusim::D3D12Window";
 		
 		// register class
 		WNDCLASSEXW window_class = {};
@@ -198,7 +198,7 @@ namespace Tellusim {
 		
 		// create Direct3D12
 		if(!create_d3d12()) {
-			TS_LOG(Error, "D3D12Window::create(): can't create D3D12\n");
+			TS_LOG(Error, "D3D12Window::create(): can't create Direct3D12\n");
 			return false;
 		}
 		

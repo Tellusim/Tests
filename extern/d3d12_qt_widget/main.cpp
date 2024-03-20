@@ -33,7 +33,7 @@ int32_t main(int32_t argc, char **argv) {
 	
 	// create window
 	Tellusim::QD3D12Widget window;
-	window.setWindowTitle("Tellusim::D3D12QtWidget");
+	window.setWindowTitle("Direct3D12 Tellusim::D3D12QtWidget");
 	window.show();
 	
 	// run application

@@ -20,8 +20,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
+#define GLFW_INCLUDE_NONE
+#define GLFW_EXPOSE_NATIVE_COCOA
+
+#include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+
+#include <Metal/Metal.h>
+#include <QuartzCore/CAMetalLayer.h>
 
 #include <core/TellusimLog.h>
 #include <core/TellusimTime.h>
@@ -38,12 +44,12 @@ namespace Tellusim {
 	
 	/*
 	 */
-	class GLSDLWindow {
+	class MTLGLFWWindow {
 			
 		public:
 			
-			GLSDLWindow();
-			~GLSDLWindow();
+			MTLGLFWWindow();
+			~MTLGLFWWindow();
 			
 			// create window
 			bool create();
@@ -54,92 +60,98 @@ namespace Tellusim {
 		private:
 			
 			// rendering loop
-			bool create_gl();
-			bool render_gl();
+			bool create_mtl();
+			bool render_mtl();
 			
 			bool done = false;
 			
-			SDL_Window *window = nullptr;
-			SDL_GLContext sdl_context = nullptr;
+			GLFWwindow *window = nullptr;
+			CAMetalLayer *layer = nullptr;
 			
-			GLContext context;
-			GLSurface surface;
+			MTLContext context;
+			MTLSurface surface;
 			
 			Device device;
 			
 			Pipeline pipeline;
 			Buffer vertex_buffer;
 			Buffer index_buffer;
+			
+			MTLTexture depth_stencil_texture;
 	};
 	
 	/*
 	 */
-	GLSDLWindow::GLSDLWindow() {
+	MTLGLFWWindow::MTLGLFWWindow() {
 		
 	}
 	
-	GLSDLWindow::~GLSDLWindow() {
+	MTLGLFWWindow::~MTLGLFWWindow() {
 		
-		// terminate SDL
-		if(sdl_context) SDL_GL_DeleteContext(sdl_context);
-		if(window) SDL_DestroyWindow(window);
-		SDL_Quit();
+		// terminate GLFW
+		if(window) glfwDestroyWindow(window);
+		glfwTerminate();
 	}
 	
 	/*
 	 */
-	bool GLSDLWindow::create() {
+	bool MTLGLFWWindow::create() {
 		
 		TS_ASSERT(window == nullptr);
 		
-		// initialize SDL
-		if(SDL_Init(SDL_INIT_VIDEO) < 0) {
-			TS_LOGF(Error, "GLSDLWindow::create(): can't init SDL %s\n", SDL_GetError());
+		// initialize GLFW
+		if(!glfwInit()) {
+			TS_LOG(Error, "MTLGLFWWindow::create(): can't init GLFW\n");
 			return false;
 		}
+		
+		// create context
+		if(!context.create()) {
+			TS_LOG(Error, "MTLGLFWWindow::create(): can't create context\n");
+			return false;
+		}
+		
+		// window size
+		float32_t scale = NSScreen.mainScreen.backingScaleFactor;
+		int32_t width = (int32_t)(1600 / scale);
+		int32_t height = (int32_t)(900 / scale);
 		
 		// create window
-		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
-		window = SDL_CreateWindow("OpenGL Tellusim::GLSDLWindow", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 900, SDL_WINDOW_OPENGL);
+		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+		window = glfwCreateWindow(width, height, "Metal Tellusim::MTLGLFWWindow", nullptr, nullptr);
 		if(!window) {
-			TS_LOGF(Error, "GLSDLWindow::create(): can't create window %s\n", SDL_GetError());
+			TS_LOG(Error, "MTLGLFWWindow::create(): can't create window\n");
 			return false;
 		}
 		
-		// set current context
-		sdl_context = SDL_GL_CreateContext(window);
-		if(!sdl_context) {
-			TS_LOGF(Error, "GLSDLWindow::create(): can't create context %s\n", SDL_GetError());
-			return false;
-		}
+		// create Matal layer
+		layer = [CAMetalLayer layer];
+		layer.device = (__bridge id<MTLDevice>)context.getDevice();
+		layer.contentsScale = scale;
+		layer.opaque = YES;
 		
-		// create external context
-		if(!context.create(nullptr)) {
-			TS_LOG(Error, "GLSDLWindow::create(): can't create context\n");
-			return false;
-		}
+		// set Metal layer
+		NSWindow *ns_window = glfwGetCocoaWindow(window);
+		ns_window.contentView.layer = layer;
+		ns_window.contentView.wantsLayer = YES;
 		
-		// create external surface
-		surface = GLSurface(context);
+		// create surface
+		surface = MTLSurface(context);
 		if(!surface) {
-			TS_LOG(Error, "GLSDLWindow::create(): can't create context\n");
+			TS_LOG(Error, "MTLGLFWWindow::create(): can't create context\n");
 			return false;
 		}
 		
 		// create device
 		device = Device(surface);
 		if(!device) {
-			TS_LOG(Error, "GLSDLWindow::create(): can't create device\n");
+			TS_LOG(Error, "MTLGLFWWindow::create(): can't create device\n");
 			return false;
 		}
 		
-		// create OpenGL
-		if(!create_gl()) {
-			TS_LOG(Error, "GLSDLWindow::create(): can't create OpenGL\n");
+		// initialize Metal
+		if(!create_mtl()) {
+			TS_LOG(Error, "MTLGLFWWindow::create(): can't create Metal\n");
 			return false;
 		}
 		
@@ -148,11 +160,13 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool GLSDLWindow::create_gl() {
+	bool MTLGLFWWindow::create_mtl() {
 		
 		// create surface
 		surface.setColorFormat(FormatRGBAu8n);
-		surface.setDepthFormat(FormatDu24Su8);
+		id<MTLDevice> mtl_device = (__bridge id<MTLDevice>)context.getDevice();
+		if(mtl_device.isDepth24Stencil8PixelFormatSupported) surface.setDepthFormat(FormatDu24Su8);
+		else surface.setDepthFormat(FormatDf32Su8);
 		
 		// create pipeline
 		pipeline = device.createPipeline();
@@ -178,13 +192,41 @@ namespace Tellusim {
 	
 	/*
 	 */
-	bool GLSDLWindow::render_gl() {
+	bool MTLGLFWWindow::render_mtl() {
 		
-		// window size
+		// framebuffer size
 		int32_t width, height;
-		SDL_GetWindowSize(window, &width, &height);
+		glfwGetFramebufferSize(window, &width, &height);
 		
-		// surface size
+		// next drawable
+		id<CAMetalDrawable> drawable = [layer nextDrawable];
+		
+		// depth stencil texture
+		if(!depth_stencil_texture || depth_stencil_texture.getWidth() != width || depth_stencil_texture.getHeight() != height) {
+			depth_stencil_texture = device.createTexture2D(surface.getDepthFormat(), width, height, Texture::FlagTarget);
+			if(!depth_stencil_texture) {
+				TS_LOG(Error, "MTLGLFWWindow::render_mtl(): can't create depth stencil\n");
+				return false;
+			}
+		}
+		
+		// render pass descriptor
+		MTLRenderPassDescriptor *descriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+		descriptor.colorAttachments[0].texture = drawable.texture;
+		descriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
+		descriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
+		descriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.0f, 0.0f, 0.0f, 0.0f);
+		descriptor.depthAttachment.texture = (__bridge id<MTLTexture>)depth_stencil_texture.getMTLTexture();
+		descriptor.depthAttachment.loadAction = MTLLoadActionClear;
+		descriptor.depthAttachment.storeAction = MTLStoreActionStore;
+		descriptor.depthAttachment.clearDepth = 1.0f;
+		descriptor.stencilAttachment.texture = (__bridge id<MTLTexture>)depth_stencil_texture.getMTLTexture();
+		descriptor.stencilAttachment.loadAction = MTLLoadActionClear;
+		descriptor.stencilAttachment.storeAction = MTLStoreActionStore;
+		descriptor.stencilAttachment.clearStencil = 0x00;
+		
+		// surface parameters
+		surface.setDescriptor((__bridge void*)descriptor);
 		surface.setSize(width, height);
 		
 		// structures
@@ -197,7 +239,7 @@ namespace Tellusim {
 		
 		// widget target
 		Target target = device.createTarget(surface);
-		target.setClearColor(Color("#5586a4"));
+		target.setClearColor(Color("#8a8b8c"));
 		target.begin();
 		{
 			// current time
@@ -223,29 +265,37 @@ namespace Tellusim {
 		}
 		target.end();
 		
-		// swap buffers
-		SDL_GL_SwapWindow(window);
+		// flush context
+		context.flush();
+		
+		// present drawable
+		id<MTLCommandBuffer> command = (__bridge id<MTLCommandBuffer>)surface.getCommand();
+		[command presentDrawable:drawable];
+		
+		// flip context
+		device.flip();
 		
 		return true;
 	}
 	
 	/*
 	 */
-	bool GLSDLWindow::run() {
+	bool MTLGLFWWindow::run() {
 		
 		// main loop
 		while(!done) {
 			
 			// pool events
-			SDL_Event event = {};
-			while(SDL_PollEvent(&event)) {
-				done |= (event.type == SDL_QUIT);
-				done |= (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE);
-			}
+			glfwPollEvents();
+			done |= (glfwWindowShouldClose(window) != 0);
+			done |= (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
 			
-			// render application
-			if(!render_gl()) {
-				return false;
+			@autoreleasepool {
+				
+				// render application
+				if(!render_mtl()) {
+					return false;
+				}
 			}
 		}
 		
@@ -258,7 +308,7 @@ namespace Tellusim {
 int32_t main(int32_t argc, char **argv) {
 	
 	// create window
-	Tellusim::GLSDLWindow window;
+	Tellusim::MTLGLFWWindow window;
 	if(!window.create()) return 1;
 	
 	// run application

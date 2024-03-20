@@ -288,7 +288,7 @@ using namespace Tellusim;
 		// create window
 		window = [[MTLWindow alloc] initWithRect:NSMakeRect(x, y, width, height)];
 		[window makeKeyAndOrderFront:nullptr];
-		window.title = @"Tellusim::MTLWindow";
+		window.title = @"Metal Tellusim::MTLWindow";
 	}
 	
 	// exit on last window close

@@ -10,6 +10,8 @@ OBJECTS_DIR = build
 CONFIG += c++11 console debug
 QT += core gui widgets
 
+QMAKE_CXXFLAGS += -DTS_DEBUG=1
+
 INCLUDEPATH += ../../../include
 INCLUDEPATH += $$(VULKAN_SDK)/include
 

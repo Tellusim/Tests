@@ -33,7 +33,7 @@ int32_t main(int32_t argc, char **argv) {
 	
 	// create window
 	Tellusim::QVKWidget window;
-	window.setWindowTitle("Tellusim::VKQtWidget");
+	window.setWindowTitle("Vulkan Tellusim::VKQtWidget");
 	window.show();
 	
 	// run application

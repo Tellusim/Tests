@@ -66,15 +66,15 @@ namespace Tellusim {
 			bool create_context();
 			void release_context();
 			
-			/// create swap chain
+			// create swap chain
 			bool create_swap_chain();
 			void release_swap_chain();
 			
-			/// create buffers
+			// create buffers
 			bool create_buffers();
 			void release_buffers();
 			
-			/// rendering loop
+			// rendering loop
 			bool create_d3d11();
 			bool render_d3d11();
 			
@@ -101,11 +101,11 @@ namespace Tellusim {
 			
 			Device device;
 			
-			Texture depth_stencil_texture;
-			
 			Pipeline pipeline;
 			Buffer vertex_buffer;
 			Buffer index_buffer;
+			
+			Texture depth_stencil_texture;
 	};
 	
 	/*
@@ -138,7 +138,7 @@ namespace Tellusim {
 		
 		// window parameters
 		const wchar_t *class_name = L"Tellusim::D3D11Window";
-		const wchar_t *window_title = L"Tellusim::D3D11Window";
+		const wchar_t *window_title = L"Direct3D11 Tellusim::D3D11Window";
 		
 		// register class
 		WNDCLASSEXW window_class = {};
@@ -196,7 +196,7 @@ namespace Tellusim {
 		
 		// create Direct3D11
 		if(!create_d3d11()) {
-			TS_LOG(Error, "D3D11Window::create(): can't create D3D11\n");
+			TS_LOG(Error, "D3D11Window::create(): can't create Direct3D11\n");
 			return false;
 		}
 		

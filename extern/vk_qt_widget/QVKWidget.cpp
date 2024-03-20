@@ -559,8 +559,6 @@ namespace Tellusim {
 	 */
 	bool QVKWidget::create_buffers() {
 		
-		TS_ASSERT(color_image == VK_NULL_HANDLE);
-		
 		// create depth image
 		VkImageCreateInfo depth_image_info = {};
 		depth_image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -848,7 +846,7 @@ namespace Tellusim {
 		
 		// widget target
 		Target target = device.createTarget(surface);
-		target.setClearColor(0.1f, 0.2f, 0.3f, 1.0f);
+		target.setClearColor(Color("#ac162c"));
 		target.begin();
 		{
 			// current time

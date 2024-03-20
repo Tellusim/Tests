@@ -41,7 +41,7 @@ int32_t main(int32_t argc, char **argv) {
 	// create window
 	Tellusim::QGLWidget window;
 	window.setFormat(format);
-	window.setWindowTitle("Tellusim::GLQtWidget");
+	window.setWindowTitle("OpenGL Tellusim::GLQtWidget");
 	window.show();
 	
 	// run application
