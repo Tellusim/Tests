@@ -1,6 +1,6 @@
 # Tellusim Core SDK Tests
 
-C++, C#, Rust, Python, Swift
+C++, C#, Rust, Python, Swift, Java
 
 Direct3D12, Direct3D11, Metal, Vulkan, OpenGL, OpenGLES, WebGL, WebGPU
 
