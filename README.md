@@ -48,7 +48,7 @@ The SeparableFilter interface helps to create different separable filters like G
 
 https://github.com/Tellusim/Tests/tree/main/graphics/separable_filter/
 
-![Separable Filter](graphics/separable_filter/graphics_separable_filter.png)
+![Separable Filter](graphics/separable_filter/graphics_separable_filter.jpg)
 
 ## Geometry Tessellation
 
@@ -64,7 +64,7 @@ Ordered Independent Transparency with atomic buffer operations from the fragment
 
 https://github.com/Tellusim/Tests/tree/main/graphics/transparency/
 
-![Transparency](graphics/transparency/graphics_transparency.png)
+![Transparency](graphics/transparency/graphics_transparency.jpg)
 
 ## Hardware Ray Tracing Shadows
 
@@ -72,7 +72,7 @@ Hardware raytracing shadows with simple deferred shading. An API with Ray Query 
 
 https://github.com/Tellusim/Tests/tree/main/graphics/shadow_tracing/
 
-![Shadow Tracing](graphics/shadow_tracing/graphics_shadow_tracing.png)
+![Shadow Tracing](graphics/shadow_tracing/graphics_shadow_tracing.jpg)
 
 ## Software Ray Tracing Shadows
 
@@ -80,7 +80,7 @@ Software raytracing shadows with simple deferred shading. Compatible with all AP
 
 https://github.com/Tellusim/Tests/tree/main/graphics/shadow_tree/
 
-![Shadow Tree](graphics/shadow_tree/graphics_shadow_tree.png)
+![Shadow Tree](graphics/shadow_tree/graphics_shadow_tree.jpg)
 
 ## Percentage Closer Filtering Shadow Map
 
@@ -88,7 +88,7 @@ PCF Shadow Maps provides shadow with variable penumbra size based on the distanc
 
 https://github.com/Tellusim/Tests/tree/main/graphics/shadow_pcf/
 
-![Shadow PCF](graphics/shadow_pcf/graphics_shadow_pcf.png)
+![Shadow PCF](graphics/shadow_pcf/graphics_shadow_pcf.jpg)
 
 ## Exponential Shadow Maps
 
@@ -96,7 +96,7 @@ Exponential Shadow Maps provides noise-free shadows with a fixed performance cos
 
 https://github.com/Tellusim/Tests/tree/main/graphics/shadow_esm/
 
-![Shadow ESM](graphics/shadow_esm/graphics_shadow_esm.png)
+![Shadow ESM](graphics/shadow_esm/graphics_shadow_esm.jpg)
 
 ## Parallax 2D
 
@@ -104,7 +104,7 @@ Parallax occlusion mapping with self-shadowing for the mesh geometry.
 
 https://github.com/Tellusim/Tests/tree/main/graphics/parallax_2d/
 
-![Parallax 2D](graphics/parallax_2d/graphics_parallax_2d.png)
+![Parallax 2D](graphics/parallax_2d/graphics_parallax_2d.jpg)
 
 ## Parallax Cube
 
@@ -112,7 +112,7 @@ Parallax occlusion mapping with self-shadowing for the analytical sphere.
 
 https://github.com/Tellusim/Tests/tree/main/graphics/parallax_cube/
 
-![Parallax Cube](graphics/parallax_cube/graphics_parallax_cube.png)
+![Parallax Cube](graphics/parallax_cube/graphics_parallax_cube.jpg)
 
 ## Mesh Tangent Basis
 
@@ -120,7 +120,7 @@ Mesh tangent basis renormalization at the Fragment Shader. Mesh class can re-cre
 
 https://github.com/Tellusim/Tests/tree/main/graphics/tangent/
 
-![Tangent](graphics/tangent/graphics_tangent.png)
+![Tangent](graphics/tangent/graphics_tangent.jpg)
 
 ## Mesh Model
 
@@ -128,7 +128,7 @@ MeshModel class creates a rendering model representation for the input Mesh or M
 
 https://github.com/Tellusim/Tests/tree/main/graphics/model/
 
-![Model](graphics/model/graphics_model.png)
+![Model](graphics/model/graphics_model.jpg)
 
 ## Mesh Skinned
 
@@ -136,7 +136,7 @@ This is a basic skinned mesh animation example. Mesh classes give comprehensive 
 
 https://github.com/Tellusim/Tests/tree/main/graphics/skinned/
 
-![Mesh Skinned](graphics/skinned/graphics_skinned.png)
+![Mesh Skinned](graphics/skinned/graphics_skinned.jpg)
 
 ## Line Rendering
 
@@ -144,7 +144,7 @@ Simple antialiased line rendering. The Vertex shader creates a screen-aligned bi
 
 https://github.com/Tellusim/Tests/tree/main/graphics/line/
 
-![Line](graphics/line/graphics_line.png)
+![Line](graphics/line/graphics_line.jpg)
 
 ## Texture Compression
 
@@ -162,7 +162,7 @@ MeshReduce is a simple way to simplify input mesh geometry. Simplification prese
 
 https://github.com/Tellusim/Tests/tree/main/geometry/reduce/
 
-![Mesh Reduce](geometry/reduce/geometry_reduce.png)
+![Mesh Reduce](geometry/reduce/geometry_reduce.jpg)
 
 ## Mesh Refine
 
@@ -170,7 +170,7 @@ MeshRefine refines geometry mesh using Catmull-Clark (for quadrilaterals) or Loo
 
 https://github.com/Tellusim/Tests/tree/main/geometry/refine/
 
-![Mesh Refine](geometry/refine/geometry_refine.png)
+![Mesh Refine](geometry/refine/geometry_refine.jpg)
 
 ---
 
@@ -188,7 +188,7 @@ MNIST Digits Recognition using TensorGraph with PyTorch model.
 
 https://github.com/Tellusim/Tests/tree/main/parallel/tensor_mnist/
 
-![Tensor MNIST](parallel/tensor_mnist/parallel_tensor_mnist.png)
+![Tensor MNIST](parallel/tensor_mnist/parallel_tensor_mnist.jpg)
 
 ## Parallel Fluid 2D
 
@@ -204,7 +204,7 @@ Multiple independent sorting algorithms can be dispatched in parallel. There is 
 
 https://github.com/Tellusim/Tests/tree/main/parallel/radix_sort/
 
-![Radix Sort](parallel/radix_sort/parallel_radix_sort.png)
+![Radix Sort](parallel/radix_sort/parallel_radix_sort.jpg)
 
 ## Parallel Spatial Grid
 
@@ -212,7 +212,7 @@ Simple physics simulation with collisions based on the SpatialGrid class. It is 
 
 https://github.com/Tellusim/Tests/tree/main/parallel/spatial_grid/
 
-![Spatial Grid](parallel/spatial_grid/parallel_spatial_grid.png)
+![Spatial Grid](parallel/spatial_grid/parallel_spatial_grid.jpg)
 
 ## Parallel Spatial Tree
 
@@ -220,7 +220,7 @@ Simple physics simulation with collisions based on the SpatialTree class. The Sp
 
 https://github.com/Tellusim/Tests/tree/main/parallel/spatial_tree/
 
-![Spatial Tree](parallel/spatial_tree/parallel_spatial_tree.png)
+![Spatial Tree](parallel/spatial_tree/parallel_spatial_tree.jpg)
 
 ---
 
@@ -230,7 +230,7 @@ Different CanvasElement classes, including texture filtration, gradients, contou
 
 https://github.com/Tellusim/Tests/tree/main/interface/canvas/
 
-![Canvas](interface/canvas/interface_canvas.png)
+![Canvas](interface/canvas/interface_canvas.jpg)
 
 ## Interface Controls
 
@@ -238,7 +238,7 @@ Different User Interface Control classes in resolution-independent configuration
 
 https://github.com/Tellusim/Tests/tree/main/interface/controls/
 
-![Controls](interface/controls/interface_controls.png)
+![Controls](interface/controls/interface_controls.jpg)
 
 ## Interface Layer
 
@@ -246,7 +246,7 @@ A transparent multilayer Controls with variable background blur.
 
 https://github.com/Tellusim/Tests/tree/main/interface/layer/
 
-![Layer](interface/layer/interface_layer.png)
+![Layer](interface/layer/interface_layer.jpg)
 
 ## SVG Image
 
@@ -254,7 +254,7 @@ Simple SVG image loading and rendering. CanvasShape class accepts SVG path strin
 
 https://github.com/Tellusim/Tests/tree/main/interface/svg/
 
-![SVG](interface/svg/interface_svg.png)
+![SVG](interface/svg/interface_svg.jpg)
 
 ## Custom Control
 
@@ -262,7 +262,7 @@ Custom Controls can be created by simple ControlBase class inheritance. The Cont
 
 https://github.com/Tellusim/Tests/tree/main/interface/control/
 
-![Control](interface/control/interface_control.png)
+![Control](interface/control/interface_control.jpg)
 
 ---
 
@@ -280,7 +280,7 @@ TextureTable is an interface for an unlimited number of bindless textures that c
 
 https://github.com/Tellusim/Tests/tree/main/platform/table/
 
-![Table](platform/table/platform_table.png)
+![Table](platform/table/platform_table.jpg)
 
 ## Platform Texel
 
@@ -288,7 +288,7 @@ Texel buffer provides cached buffer access that is compatible with OpenGLES plat
 
 https://github.com/Tellusim/Tests/tree/main/platform/texel/
 
-![Texel](platform/texel/platform_texel.png)
+![Texel](platform/texel/platform_texel.jpg)
 
 ## Platform Texture
 
@@ -296,7 +296,7 @@ Dynamic 3D texture created with SIMD CPU instructions.
 
 https://github.com/Tellusim/Tests/tree/main/platform/texture/
 
-![Texture](platform/texture/platform_texture.png)
+![Texture](platform/texture/platform_texture.jpg)
 
 ## Platform Command
 
@@ -304,7 +304,7 @@ Command class for basic rendering. Depth Cube texture for omnidirectional shadow
 
 https://github.com/Tellusim/Tests/tree/main/platform/command/
 
-![Command](platform/command/platform_command.png)
+![Command](platform/command/platform_command.jpg)
 
 ## Platform Tracing
 
@@ -312,7 +312,7 @@ Hardware accelerated raytracing shadows. An API with Ray Query support is requir
 
 https://github.com/Tellusim/Tests/tree/main/platform/tracing/
 
-![Tracing](platform/tracing/platform_tracing.png)
+![Tracing](platform/tracing/platform_tracing.jpg)
 
 ## Platform Compute
 
@@ -320,7 +320,7 @@ Compute class for simple compute shader texture generation.
 
 https://github.com/Tellusim/Tests/tree/main/platform/compute/
 
-![Compute](platform/compute/platform_compute.png)
+![Compute](platform/compute/platform_compute.jpg)
 
 ## Platform Fence
 
@@ -328,7 +328,7 @@ Multi-GPU N-body simulation with Fence synchronization. A shared buffer is used 
 
 https://github.com/Tellusim/Tests/tree/main/platform/fence/
 
-![Fence](platform/fence/platform_fence.png)
+![Fence](platform/fence/platform_fence.jpg)
 
 ## Platform Dynamic
 
@@ -344,7 +344,7 @@ Vertex Shader clip distance output is useful for arbitrary geometry culling.
 
 https://github.com/Tellusim/Tests/tree/main/platform/clipping/
 
-![Clipping](platform/clipping/platform_clipping.png)
+![Clipping](platform/clipping/platform_clipping.jpg)
 
 ## Platform Stencil Buffer
 
@@ -352,7 +352,7 @@ Constructive Solid Geometry with the Stencil Buffer. This algorithm is compatibl
 
 https://github.com/Tellusim/Tests/tree/main/platform/stencil/
 
-![Stencil](platform/stencil/platform_stencil.png)
+![Stencil](platform/stencil/platform_stencil.jpg)
 
 ## Platform Fusion
 
@@ -360,7 +360,7 @@ Fusion API allows replicating all commands and resources across multiple physica
 
 https://github.com/Tellusim/Tests/tree/main/platform/fusion/
 
-![Fusion](platform/fusion/platform_fusion.png)
+![Fusion](platform/fusion/platform_fusion.jpg)
 
 ## Platform Layers
 
@@ -376,7 +376,7 @@ Build-in barycentric coordinate input is available in Vulkan, Direct3D12, and Me
 
 https://github.com/Tellusim/Tests/tree/main/platform/barycentric/
 
-![Barycentric](platform/barycentric/platform_barycentric.png)
+![Barycentric](platform/barycentric/platform_barycentric.jpg)
 
 ## Platform Texture Samples
 
@@ -384,7 +384,7 @@ Writing and reading individual multisample texture samples with active Pipeline 
 
 https://github.com/Tellusim/Tests/tree/main/platform/samples/
 
-![Samples](platform/samples/platform_samples.png)
+![Samples](platform/samples/platform_samples.jpg)
 
 ## Conservative Rasterization
 
@@ -392,7 +392,7 @@ Hardware conservative rasterization.
 
 https://github.com/Tellusim/Tests/tree/main/platform/conservative/
 
-![Conservative](platform/conservative/platform_conservative.png)
+![Conservative](platform/conservative/platform_conservative.jpg)
 
 ## Cooperative Matrix (Tensor Cores)
 
@@ -400,7 +400,7 @@ Cooperative matrix example.
 
 https://github.com/Tellusim/Tests/tree/main/platform/cooperative/
 
-![Cooperative](platform/cooperative/platform_cooperative.png)
+![Cooperative](platform/cooperative/platform_cooperative.jpg)
 
 ## Matrix Multiplication
 
@@ -408,7 +408,7 @@ Matrix multiplication example.
 
 https://github.com/Tellusim/Tests/tree/main/platform/matrix/
 
-![Matrix](platform/matrix/platform_matrix.png)
+![Matrix](platform/matrix/platform_matrix.jpg)
 
 ## Shader Printf
 
@@ -416,4 +416,4 @@ A simple preprocessor-based printf() functionality for compute shaders that work
 
 https://github.com/Tellusim/Tests/tree/main/platform/printf/
 
-![Printf](platform/printf/platform_printf.png)
+![Printf](platform/printf/platform_printf.jpg)
