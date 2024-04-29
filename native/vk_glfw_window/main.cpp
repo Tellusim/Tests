@@ -75,7 +75,7 @@ namespace Tellusim {
 			bool render_vk();
 			
 			enum {
-				NumFrames = 2,
+				NumFrames = 3,
 			};
 			
 			struct Frame {
@@ -83,6 +83,7 @@ namespace Tellusim {
 				VkImageView color_image_view = VK_NULL_HANDLE;
 				VkSemaphore acquire_semaphore = VK_NULL_HANDLE;
 				VkSemaphore present_semaphore = VK_NULL_HANDLE;
+				VkSemaphore wait_semaphore = VK_NULL_HANDLE;
 				VkFramebuffer framebuffer = VK_NULL_HANDLE;
 			};
 			
@@ -106,7 +107,7 @@ namespace Tellusim {
 			VkSwapchainKHR swap_chain = VK_NULL_HANDLE;
 			
 			Array<Frame> frames;
-			uint32_t frame_index = 0;
+			uint32_t frame_index = NumFrames - 1;
 			
 			Device device;
 			
@@ -259,7 +260,7 @@ namespace Tellusim {
 		
 		// supported formats
 		const VkFormat vk_formats[] = { VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D32_SFLOAT_S8_UINT };
-		const Format formats[] = { FormatRGBf32, FormatBGRAu8n, FormatDu24Su8, FormatDf32Su8 };
+		const Format formats[] = { FormatRGBAu8n, FormatBGRAu8n, FormatDu24Su8, FormatDf32Su8 };
 		
 		// surface color format
 		uint32_t num_color_formats = 0;
@@ -636,7 +637,7 @@ namespace Tellusim {
 		
 		// swap frames
 		Frame *frame = &frames[frame_index];
-		swap(frames[old_frame_index].acquire_semaphore, frame->acquire_semaphore);
+		frame->wait_semaphore = frames[old_frame_index].acquire_semaphore;
 		
 		// color image layout
 		barrier(frame->color_image, VK_ACCESS_MEMORY_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -690,9 +691,11 @@ namespace Tellusim {
 		VkSubmitInfo submit_info = {};
 		VkPipelineStageFlags acquire_mask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 		submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submit_info.waitSemaphoreCount = 1;
-		submit_info.pWaitSemaphores = &frame->acquire_semaphore;
-		submit_info.pWaitDstStageMask = &acquire_mask;
+		if(frame->wait_semaphore) {
+			submit_info.waitSemaphoreCount = 1;
+			submit_info.pWaitSemaphores = &frame->wait_semaphore;
+			submit_info.pWaitDstStageMask = &acquire_mask;
+		}
 		submit_info.commandBufferCount = 0;
 		submit_info.pCommandBuffers = nullptr;
 		submit_info.signalSemaphoreCount = 1;

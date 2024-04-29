@@ -80,7 +80,7 @@ namespace Tellusim {
 			void render_vk();
 			
 			enum {
-				NumFrames = 2,
+				NumFrames = 3,
 			};
 			
 			struct Frame {
@@ -88,6 +88,7 @@ namespace Tellusim {
 				VkImageView color_image_view = VK_NULL_HANDLE;
 				VkSemaphore acquire_semaphore = VK_NULL_HANDLE;
 				VkSemaphore present_semaphore = VK_NULL_HANDLE;
+				VkSemaphore wait_semaphore = VK_NULL_HANDLE;
 				VkFramebuffer framebuffer = VK_NULL_HANDLE;
 			};
 			
@@ -107,7 +108,7 @@ namespace Tellusim {
 			VkSwapchainKHR swap_chain = VK_NULL_HANDLE;
 			
 			Array<Frame> frames;
-			uint32_t frame_index = 0;
+			uint32_t frame_index = NumFrames - 1;
 			VkSurfaceFormatKHR color_format = {};
 			
 			VkImage depth_image = VK_NULL_HANDLE;
